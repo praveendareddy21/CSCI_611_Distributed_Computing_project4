@@ -1,0 +1,2 @@
+# CSCI_611_Distributed_Computing_Linux_sniCSCI_611_Distributed_Computing_project4
+Goldchase project 4 with support for distributed computing uising daemon service
