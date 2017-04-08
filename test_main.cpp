@@ -45,7 +45,12 @@ struct mapboard{
   //unsigned char playing;
   pid_t player_pids[5];
   unsigned char map[0];
+  int daemonID;
 };
+
+void init_Server_Daemon();
+void init_Client_Daemon();
+
 
 Map * gameMap = NULL;
 mqd_t readqueue_fd; //message queue file descriptor
@@ -395,7 +400,7 @@ void sendMsgToPlayer(int thisPlayer, int toPlayerInt, string msg, bool is_msg_pr
 
   if((writequeue_fd=mq_open(msg_queue_name.c_str(), O_WRONLY|O_NONBLOCK))==-1)
   {
-    
+
     perror("Error in mq_send");
     handleGameExit(0);
   }
@@ -487,10 +492,15 @@ int main(int argc, char *argv[])
 
   int rows, cols, goldCount, keyInput = 0, currPlaying = -1;
   bool thisPlayerFoundGold = false , thisQuitGameloop = false;
-  char * mapFile = "mymap.txt";
+  char * mapFile = "mymap.txt",* daemon_server_ip;
   const char * notice;
   unsigned char * mp; //map pointer
   vector<vector< char > > mapVector;
+  if(argc == 2){ // ip to connect daemon server
+    daemon_server_ip = argv[1];
+  }else{
+
+  }
 
 
   shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
