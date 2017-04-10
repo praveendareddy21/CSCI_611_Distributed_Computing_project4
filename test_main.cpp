@@ -491,21 +491,26 @@ int main(int argc, char *argv[])
 {
 
   int rows, cols, goldCount, keyInput = 0, currPlaying = -1;
-  bool thisPlayerFoundGold = false , thisQuitGameloop = false;
+  bool thisPlayerFoundGold = false , thisQuitGameloop = false, inServerNode = false, inClientNode = false;
   char * mapFile = "mymap.txt",* daemon_server_ip;
   const char * notice;
   unsigned char * mp; //map pointer
   vector<vector< char > > mapVector;
   if(argc == 2){ // ip to connect daemon server
     daemon_server_ip = argv[1];
-  }else{
+    inClientNode = true;
 
+  }else{
+    inServerNode = true;
   }
 
 
   shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
   if(shm_sem == SEM_FAILED)
   {
+     if(inClientNode){
+       // setup client demon
+     }
      shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
      //cout<<"first player"<<endl;
      mapVector = readMapFromFile(mapFile, goldCount);
@@ -521,6 +526,11 @@ int main(int argc, char *argv[])
      initGameMap(mbp, mapVector);
      placeGoldsOnMap(mbp, goldCount);
      thisPlayer = placeIncrementPlayerOnMap(mbp, thisPlayerLoc);
+
+     if(inServerNode){
+       //set up server node
+     }
+
      sem_post(shm_sem);
      //cout<<"shm init done"<<endl;
    }
