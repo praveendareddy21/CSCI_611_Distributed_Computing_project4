@@ -48,6 +48,7 @@ struct mapboard{
   int daemonID;
 };
 
+void init_Generic_Daemon( void (*f) (void));
 void init_Server_Daemon();
 void init_Client_Daemon();
 
@@ -65,7 +66,48 @@ int thisPlayer = 0, thisPlayerLoc= 0;
 
 //###########################################################################################################
 
+void init_Server_Daemon(){
+  int rows, cols;
+  sem_wait(shm_sem);
+  mbp = readSharedMemory();
+  rows = mbp->rows;
+  cols = mbp->cols;
+  sem_post(shm_sem);
 
+}
+
+void long_sleep(){
+  sleep(30);
+}
+
+void init_Generic_Daemon( void (*f) (void)){
+
+  if(fork() > 0)
+    return;
+
+  if(fork()>0)
+  exit(0);
+
+  if(setsid()==-1)//child obtains its own SID & Process Group
+    exit(1);
+  for(int i=0; i<sysconf(_SC_OPEN_MAX); ++i)
+    close(i);
+  open("/dev/null", O_RDWR); //fd 0
+  open("/dev/null", O_RDWR); //fd 1
+  open("/home/red/611_project/CSCI_611_Distributed_Computing_project4/g.log", O_RDWR); //fd 2
+
+  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase.log", "w+");
+
+  fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
+  fflush(fp);
+  fclose(fp);
+
+  umask(0);
+  chdir("/");
+
+  (*f)();
+
+}
 
 void refreshMap(int){
   if(gameMap != NULL){
@@ -273,6 +315,8 @@ int main(int argc, char *argv[])
 
      if(inServerNode){
        //set up server node
+       init_Generic_Daemon(long_sleep);
+       cout<<"created server daemon"<<endl;
      }
 
      sem_post(shm_sem);
@@ -288,6 +332,9 @@ int main(int argc, char *argv[])
      thisPlayer = placeIncrementPlayerOnMap(mbp, thisPlayerLoc);
      sem_post(shm_sem);
    }
+
+   handleGameExit(0);
+   return 0;
 
    try
    {
