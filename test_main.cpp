@@ -72,7 +72,14 @@ void init_Server_Daemon(){
   mbp = readSharedMemory();
   rows = mbp->rows;
   cols = mbp->cols;
+  mbp->daemonID = getpid();
   sem_post(shm_sem);
+
+  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase.log", "w+");
+  fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
+  fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
+  fflush(fp);
+  fclose(fp);
 
 }
 
@@ -96,11 +103,6 @@ void init_Generic_Daemon( void (*f) (void)){
   open("/dev/null", O_RDWR); //fd 1
   open("/home/red/611_project/CSCI_611_Distributed_Computing_project4/g.log", O_RDWR); //fd 2
 
-  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase.log", "w+");
-
-  fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
-  fflush(fp);
-  fclose(fp);
 
   umask(0);
   chdir("/");
@@ -308,19 +310,23 @@ int main(int argc, char *argv[])
      mbp->rows = rows;
      mbp->cols = cols;
      mbp->player_pids[0] = -1; mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
+     mbp->daemonID = -1;
 
      initGameMap(mbp, mapVector);
      placeGoldsOnMap(mbp, goldCount);
      thisPlayer = placeIncrementPlayerOnMap(mbp, thisPlayerLoc);
+     sem_post(shm_sem);
 
      if(inServerNode){
        //set up server node
-       init_Generic_Daemon(long_sleep);
+       init_Generic_Daemon(init_Server_Daemon);
        cout<<"created server daemon"<<endl;
      }
+     sleep(10);
 
+     sem_wait(shm_sem);
+     cout<<"shm init done daemonid "<<mbp->daemonID<<endl;
      sem_post(shm_sem);
-     //cout<<"shm init done"<<endl;
    }
    else
    {
