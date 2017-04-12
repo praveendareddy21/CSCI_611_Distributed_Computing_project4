@@ -44,8 +44,8 @@ struct mapboard{
   int cols;
   //unsigned char playing;
   pid_t player_pids[5];
-  unsigned char map[0];
   int daemonID;
+  unsigned char map[0];
 };
 
 void init_Generic_Daemon( void (*f) (void));
@@ -321,12 +321,11 @@ int main(int argc, char *argv[])
        //set up server node
        init_Generic_Daemon(init_Server_Daemon);
        cout<<"created server daemon"<<endl;
-     }
-     sleep(10);
 
-     sem_wait(shm_sem);
-     cout<<"shm init done daemonid "<<mbp->daemonID<<endl;
-     sem_post(shm_sem);
+       while(1){ if (mbp->daemonID != -1) break;} // loop until daemonId is updated
+       cout<<"shm init done daemonid "<<mbp->daemonID<<endl;
+     }
+
    }
    else
    {
