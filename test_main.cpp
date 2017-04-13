@@ -29,14 +29,20 @@
 
 using namespace std;
 
+#ifndef SHM_CONSTANTS
+#define SHM_CONSTANTS
 #define  SHM_SM_NAME "/PD_semaphore"
 #define  SHM_NAME "/PD_SharedMemory"
+#define MSG_QUEUE_PREFIX "/PD_MSG_QUEUE_P"
+#define IS_CLIENT 0
+#endif
+
+#define PORT "42425"
 #define REAL_GOLD_MESSAGE "You found Real Gold!!"
 #define FAKE_GOLD_MESSAGE "You found Fool's Gold!!"
 #define EMPTY_MESSAGE_PLAYER_MOVED "m"
 #define EMPTY_MESSAGE_PLAYER_NOT_MOVED "n"
 #define YOU_WON_MESSAGE "You Won!"
-#define MSG_QUEUE_PREFIX "/PD_MSG_QUEUE_P"
 
 
 struct mapboard{
