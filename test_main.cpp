@@ -213,26 +213,6 @@ void init_Client_Daemon(){
 
 }
 
-vector<vector< char > > readMapFromFile_(char * mapFile, int &golds){
-  vector<vector< char > > mapVector;
-  vector< char > temp;
-  string line;
-  char c;
-  ifstream mapStream(mapFile);
-  mapStream >>golds;
-  mapStream.get(c);
-
-  while(getline(mapStream,line))
-  {
-     for(int i=0; i < line.length(); i++){
-       temp.push_back(line[i]);
-     }
-     mapVector.push_back(temp);
-     temp.clear();
-  }
-  return mapVector;
-}
-
 
 vector<vector< char > >  getMapVectorFromServerDaemon(){
   int rows, cols;
@@ -494,6 +474,24 @@ int main(int argc, char *argv[])
   if(IS_CLIENT){ //argc == 2){ // ip to connect daemon server
     daemon_server_ip = argv[1];
     inClientNode = true;
+    shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
+    if(shm_sem == SEM_FAILED)//     semaphore and shm not initilized on client;
+    {
+      mapVector = readMapFromFile(mapFile, goldCount);
+      shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
+      rows = mapVector.size();
+      cols = mapVector[0].size();
+      sem_wait(shm_sem);
+      mbp = initSharedMemory(rows, cols);
+      mbp->rows = rows;
+      mbp->cols = cols;
+      mbp->player_pids[0] = -1; mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
+      mbp->daemonID = -1;
+      initGameMap(mbp, mapVector);
+      sem_post(shm_sem);
+
+      // wait loop until shm is inited by client daemon
+    }
 
   }else{
     inServerNode = true;
@@ -503,6 +501,7 @@ int main(int argc, char *argv[])
   shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
   if(shm_sem == SEM_FAILED)//     //cout<<"first player"<<endl;
   {
+    /*
      if(inClientNode){
        // setup client demon
        invoke_in_Daemon(init_Client_Daemon);
@@ -511,8 +510,9 @@ int main(int argc, char *argv[])
 
      }else{ // not in client node, load map from mapFile
             mapVector = readMapFromFile(mapFile, goldCount);
-     }
+     } */
 
+     mapVector = readMapFromFile(mapFile, goldCount);
      shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
      rows = mapVector.size();
      cols = mapVector[0].size();
@@ -550,6 +550,7 @@ int main(int argc, char *argv[])
      sem_post(shm_sem);
    }
 
+   cout<<"all done cleaning up shm now"<<endl;
    handleGameExit(0);
    return 0;
 
