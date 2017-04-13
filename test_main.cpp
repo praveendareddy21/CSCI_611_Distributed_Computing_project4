@@ -39,6 +39,7 @@ using namespace std;
 #define IS_CLIENT 0
 #endif
 
+#define PORT "42425"
 #define REAL_GOLD_MESSAGE "You found Real Gold!!"
 #define FAKE_GOLD_MESSAGE "You found Fool's Gold!!"
 #define EMPTY_MESSAGE_PLAYER_MOVED "m"
@@ -73,6 +74,10 @@ int thisPlayer = 0, thisPlayerLoc= 0;
 #include"test_main_util.cpp"
 
 //###########################################################################################################
+void long_sleep(){
+  sleep(30);
+}
+
 
 void init_Server_Daemon(){
   int rows, cols;
@@ -89,7 +94,7 @@ void init_Server_Daemon(){
   fflush(fp);
 
   int sockfd,status; //file descriptor for the socket
-  const char* portno="42424";//change this # between 2000-65k before using
+  const char* portno=PORT;//change this # between 2000-65k before using
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints)); //zero out everything in structure
@@ -143,8 +148,7 @@ void init_Server_Daemon(){
   //read & write to the socket
   char buffer[100];
   memset(buffer,0,100);
-int n;
-//rio_readn(new_sockfd, buffer, 11);
+  int n;
   READ<char> (new_sockfd, buffer, 11);
   fprintf(fp,"The client said: %s\n", buffer);
 
@@ -152,6 +156,7 @@ int n;
   write(new_sockfd, message, strlen(message));
   close(new_sockfd);
   fclose(fp);
+  long_sleep();
 
 }
 
@@ -164,7 +169,7 @@ void init_Client_Daemon(){
   int sockfd, status; //file descriptor for the socket
 
   //change this # between 2000-65k before using
-  const char* portno="42424";
+  const char* portno=PORT;
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints)); //zero out everything in structure
@@ -206,15 +211,88 @@ void init_Client_Daemon(){
   fprintf(fp, "%s\n", buffer);
   close(sockfd);
 
-
-
-
-
 }
 
-void long_sleep(){
-  sleep(30);
+vector<vector< char > > readMapFromFile_(char * mapFile, int &golds){
+  vector<vector< char > > mapVector;
+  vector< char > temp;
+  string line;
+  char c;
+  ifstream mapStream(mapFile);
+  mapStream >>golds;
+  mapStream.get(c);
+
+  while(getline(mapStream,line))
+  {
+     for(int i=0; i < line.length(); i++){
+       temp.push_back(line[i]);
+     }
+     mapVector.push_back(temp);
+     temp.clear();
+  }
+  return mapVector;
 }
+
+
+vector<vector< char > >  getMapVectorFromServerDaemon(){
+  int rows, cols;
+  //vector<vector< char > > mapVector;
+  vector<vector< char > > mapVector(26, vector<char> (80, '*'));
+  vector< char > temp;
+  string line;
+  char c;
+
+  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_client.log", "w+");
+  fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
+  fflush(fp);
+  int sockfd, status; //file descriptor for the socket
+
+  //change this # between 2000-65k before using
+  const char* portno=PORT;
+
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
+  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
+  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
+
+  struct addrinfo *servinfo;
+  //instead of "localhost", it could by any domain name
+  if((status=getaddrinfo("localhost", portno, &hints, &servinfo))==-1)
+  {
+    fprintf(fp, "getaddrinfo error: %s\n", gai_strerror(status));
+    exit(1);
+  }
+  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+
+  if((status=connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
+  {
+    perror("connect");
+    exit(1);
+  }
+  //release the information allocated by getaddrinfo()
+  freeaddrinfo(servinfo);
+
+  const char* message="One small step for (a) man, one large  leap for Mankind";
+  int n;
+
+  WRITE<char> (sockfd, "To", 2);
+  WRITE<char> (sockfd, "dd", 2);
+  WRITE<char> (sockfd, "Gibso", 5);
+  WRITE<char> (sockfd, "n", 1);
+
+  fclose(fp);
+  return mapVector;
+
+  fprintf(fp,"client wrote %d characters\n", 11);
+  char buffer[100];
+  memset(buffer, 0, 100);
+  read(sockfd, buffer, 99);
+  fprintf(fp, "%s\n", buffer);
+  close(sockfd);
+  return mapVector;
+}
+
+
 
 void invoke_in_Daemon( void (*f) (void)){
 
@@ -428,6 +506,7 @@ int main(int argc, char *argv[])
      if(inClientNode){
        // setup client demon
        invoke_in_Daemon(init_Client_Daemon);
+       //mapVector = getMapVectorFromServerDaemon();
        mapVector = readMapFromFile(mapFile, goldCount); // remove later
 
      }else{ // not in client node, load map from mapFile
