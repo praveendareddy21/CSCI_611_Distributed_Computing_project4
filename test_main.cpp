@@ -93,71 +93,11 @@ void init_Server_Daemon(){
   fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
   fflush(fp);
 
-  int sockfd,status; //file descriptor for the socket
-  const char* portno=PORT;//change this # between 2000-65k before using
-
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
-  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
-  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
-  hints.ai_flags=AI_PASSIVE; //file in the IP of the server for me
-
-  struct addrinfo *servinfo;
-  if((status=getaddrinfo(NULL, portno, &hints, &servinfo))==-1)
-  {
-    fprintf(fp, "getaddrinfo error: %s\n", gai_strerror(status));
-    exit(1);
-  }
-  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
-
-  /*avoid "Address already in use" error*/
-  int yes=1;
-  if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))==-1)
-  {
-    perror("setsockopt");
-    exit(1);
-  }
-
-  //We need to "bind" the socket to the port number so that the kernel
-  //can match an incoming packet on a port to the proper process
-  if((status=bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
-  {
-    perror("bind");
-    exit(1);
-  }
-  //when done, release dynamically allocated memory
-  freeaddrinfo(servinfo);
-
-  if(listen(sockfd,1)==-1)
-  {
-    perror("listen");
-    exit(1);
-  }
-
-  fprintf(fp,"Blocking, waiting for client to connect\n");
-
-  struct sockaddr_in client_addr;
-  socklen_t clientSize=sizeof(client_addr);
-  int new_sockfd;
-  if((new_sockfd=accept(sockfd, (struct sockaddr*) &client_addr, &clientSize))==-1)
-  {
-    perror("accept");
-    exit(1);
-  }
-
-  //read & write to the socket
-  char buffer[100];
-  memset(buffer,0,100);
-  int n;
-  READ<char> (new_sockfd, buffer, 11);
-  fprintf(fp,"The client said: %s\n", buffer);
-
-  const char* message="These are the times that try men's souls.";
-  write(new_sockfd, message, strlen(message));
-  close(new_sockfd);
+  fprintf(fp,"All done in Server demon, Shutting down.\n");
   fclose(fp);
-  long_sleep();
-
+  //long_sleep();
+  return;
+  
 }
 
 void init_Client_Daemon(){
@@ -166,51 +106,29 @@ void init_Client_Daemon(){
   FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_client.log", "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
   fflush(fp);
-  int sockfd, status; //file descriptor for the socket
 
-  //change this # between 2000-65k before using
-  const char* portno=PORT;
 
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
-  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
-  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
+  fprintf(fp,"Reading from mapfile now.\n");
+  mapVector = readMapFromFile(mapFile, goldCount);
+  shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
+  rows = mapVector.size();
+  cols = mapVector[0].size();
 
-  struct addrinfo *servinfo;
-  //instead of "localhost", it could by any domain name
-  if((status=getaddrinfo("localhost", portno, &hints, &servinfo))==-1)
-  {
-    fprintf(fp, "getaddrinfo error: %s\n", gai_strerror(status));
-    exit(1);
-  }
-  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+  sem_wait(shm_sem);
+  mbp = initSharedMemory(rows, cols);
+  mbp->rows = rows;
+  mbp->cols = cols;
+  mbp->player_pids[0] = -1; mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
+  mbp->daemonID = -1;
+  initGameMap(mbp, mapVector);
+  sem_post(shm_sem);
 
-  if((status=connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
-  {
-    perror("connect");
-    exit(1);
-  }
-  //release the information allocated by getaddrinfo()
-  freeaddrinfo(servinfo);
+  fprintf(fp,"initilized Shm, posting semaphore \n");
 
-  const char* message="One small step for (a) man, one large  leap for Mankind";
-  int n;
 
-  WRITE<char> (sockfd, "To", 2);
-  WRITE<char> (sockfd, "dd", 2);
-  WRITE<char> (sockfd, "Gibso", 5);
-  WRITE<char> (sockfd, "n", 1);
-
+  fprintf(fp,"All done in Cliet demon, Shutting down.\n");
   fclose(fp);
-  return ;
-
-  fprintf(fp,"client wrote %d characters\n", 11);
-  char buffer[100];
-  memset(buffer, 0, 100);
-  read(sockfd, buffer, 99);
-  fprintf(fp, "%s\n", buffer);
-  close(sockfd);
-
+  return;
 }
 
 
@@ -477,20 +395,17 @@ int main(int argc, char *argv[])
     shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
     if(shm_sem == SEM_FAILED)//     semaphore and shm not initilized on client;
     {
-      mapVector = readMapFromFile(mapFile, goldCount);
-      shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
-      rows = mapVector.size();
-      cols = mapVector[0].size();
-      sem_wait(shm_sem);
-      mbp = initSharedMemory(rows, cols);
-      mbp->rows = rows;
-      mbp->cols = cols;
-      mbp->player_pids[0] = -1; mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
-      mbp->daemonID = -1;
-      initGameMap(mbp, mapVector);
-      sem_post(shm_sem);
-
+      invoke_in_Daemon(init_Client_Daemon);
       // wait loop until shm is inited by client daemon
+
+      while(1){ // loop until mbp is updated
+        if (mbp == NULL)
+          cout<<"mbp not set";
+        else{
+          cout<<"mbp set";
+          break;
+        } 
+      } 
     }
 
   }else{
