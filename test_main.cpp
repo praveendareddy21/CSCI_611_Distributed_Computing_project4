@@ -26,17 +26,25 @@
 #include <errno.h>
 #include <cstdlib>
 #include <sstream>
-
+#include "fancyRW.h"
 using namespace std;
 
+// uncomment before multi-node
+
+#ifndef SHM_CONSTANTS
+#define SHM_CONSTANTS
 #define  SHM_SM_NAME "/PD_semaphore"
 #define  SHM_NAME "/PD_SharedMemory"
+#define MSG_QUEUE_PREFIX "/PD_MSG_QUEUE_P"
+#define IS_CLIENT 0
+#endif
+
 #define REAL_GOLD_MESSAGE "You found Real Gold!!"
 #define FAKE_GOLD_MESSAGE "You found Fool's Gold!!"
 #define EMPTY_MESSAGE_PLAYER_MOVED "m"
 #define EMPTY_MESSAGE_PLAYER_NOT_MOVED "n"
 #define YOU_WON_MESSAGE "You Won!"
-#define MSG_QUEUE_PREFIX "/PD_MSG_QUEUE_P"
+
 
 
 struct mapboard{
@@ -48,7 +56,7 @@ struct mapboard{
   unsigned char map[0];
 };
 
-void init_Generic_Daemon( void (*f) (void));
+void invoke_in_Daemon( void (*f) (void));
 void init_Server_Daemon();
 void init_Client_Daemon();
 
@@ -75,11 +83,132 @@ void init_Server_Daemon(){
   mbp->daemonID = getpid();
   sem_post(shm_sem);
 
-  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase.log", "w+");
+  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_server.log", "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
   fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
   fflush(fp);
+
+  int sockfd,status; //file descriptor for the socket
+  const char* portno="42424";//change this # between 2000-65k before using
+
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
+  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
+  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
+  hints.ai_flags=AI_PASSIVE; //file in the IP of the server for me
+
+  struct addrinfo *servinfo;
+  if((status=getaddrinfo(NULL, portno, &hints, &servinfo))==-1)
+  {
+    fprintf(fp, "getaddrinfo error: %s\n", gai_strerror(status));
+    exit(1);
+  }
+  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+
+  /*avoid "Address already in use" error*/
+  int yes=1;
+  if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))==-1)
+  {
+    perror("setsockopt");
+    exit(1);
+  }
+
+  //We need to "bind" the socket to the port number so that the kernel
+  //can match an incoming packet on a port to the proper process
+  if((status=bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
+  {
+    perror("bind");
+    exit(1);
+  }
+  //when done, release dynamically allocated memory
+  freeaddrinfo(servinfo);
+
+  if(listen(sockfd,1)==-1)
+  {
+    perror("listen");
+    exit(1);
+  }
+
+  fprintf(fp,"Blocking, waiting for client to connect\n");
+
+  struct sockaddr_in client_addr;
+  socklen_t clientSize=sizeof(client_addr);
+  int new_sockfd;
+  if((new_sockfd=accept(sockfd, (struct sockaddr*) &client_addr, &clientSize))==-1)
+  {
+    perror("accept");
+    exit(1);
+  }
+
+  //read & write to the socket
+  char buffer[100];
+  memset(buffer,0,100);
+int n;
+//rio_readn(new_sockfd, buffer, 11);
+  READ<char> (new_sockfd, buffer, 11);
+  fprintf(fp,"The client said: %s\n", buffer);
+
+  const char* message="These are the times that try men's souls.";
+  write(new_sockfd, message, strlen(message));
+  close(new_sockfd);
   fclose(fp);
+
+}
+
+void init_Client_Daemon(){
+  int rows, cols;
+
+  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_client.log", "w+");
+  fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
+  fflush(fp);
+  int sockfd, status; //file descriptor for the socket
+
+  //change this # between 2000-65k before using
+  const char* portno="42424";
+
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
+  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
+  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
+
+  struct addrinfo *servinfo;
+  //instead of "localhost", it could by any domain name
+  if((status=getaddrinfo("localhost", portno, &hints, &servinfo))==-1)
+  {
+    fprintf(fp, "getaddrinfo error: %s\n", gai_strerror(status));
+    exit(1);
+  }
+  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+
+  if((status=connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
+  {
+    perror("connect");
+    exit(1);
+  }
+  //release the information allocated by getaddrinfo()
+  freeaddrinfo(servinfo);
+
+  const char* message="One small step for (a) man, one large  leap for Mankind";
+  int n;
+
+  WRITE<char> (sockfd, "To", 2);
+  WRITE<char> (sockfd, "dd", 2);
+  WRITE<char> (sockfd, "Gibso", 5);
+  WRITE<char> (sockfd, "n", 1);
+
+  fclose(fp);
+  return ;
+
+  fprintf(fp,"client wrote %d characters\n", 11);
+  char buffer[100];
+  memset(buffer, 0, 100);
+  read(sockfd, buffer, 99);
+  fprintf(fp, "%s\n", buffer);
+  close(sockfd);
+
+
+
+
 
 }
 
@@ -87,7 +216,7 @@ void long_sleep(){
   sleep(30);
 }
 
-void init_Generic_Daemon( void (*f) (void)){
+void invoke_in_Daemon( void (*f) (void)){
 
   if(fork() > 0)
     return;
@@ -284,7 +413,7 @@ int main(int argc, char *argv[])
   const char * notice;
   unsigned char * mp; //map pointer
   vector<vector< char > > mapVector;
-  if(argc == 2){ // ip to connect daemon server
+  if(IS_CLIENT){ //argc == 2){ // ip to connect daemon server
     daemon_server_ip = argv[1];
     inClientNode = true;
 
@@ -294,14 +423,18 @@ int main(int argc, char *argv[])
 
 
   shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
-  if(shm_sem == SEM_FAILED)
+  if(shm_sem == SEM_FAILED)//     //cout<<"first player"<<endl;
   {
      if(inClientNode){
        // setup client demon
+       invoke_in_Daemon(init_Client_Daemon);
+       mapVector = readMapFromFile(mapFile, goldCount); // remove later
+
+     }else{ // not in client node, load map from mapFile
+            mapVector = readMapFromFile(mapFile, goldCount);
      }
+
      shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
-     //cout<<"first player"<<endl;
-     mapVector = readMapFromFile(mapFile, goldCount);
      rows = mapVector.size();
      cols = mapVector[0].size();
 
@@ -319,7 +452,7 @@ int main(int argc, char *argv[])
 
      if(inServerNode){
        //set up server node
-       init_Generic_Daemon(init_Server_Daemon);
+       invoke_in_Daemon(init_Server_Daemon);
        cout<<"created server daemon"<<endl;
 
        while(1){ if (mbp->daemonID != -1) break;} // loop until daemonId is updated
