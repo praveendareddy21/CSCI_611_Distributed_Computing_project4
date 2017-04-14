@@ -72,6 +72,7 @@ string mq_name;
 sem_t* shm_sem;
 mapboard * mbp = NULL;
 int thisPlayer = 0, thisPlayerLoc= 0;
+char initial_map[2100];
 
 //####################################################### test map util #######################################
 
@@ -138,7 +139,7 @@ vector<vector< char > > perform_IPC_with_server(FILE *fp){
 }
 
 void perform_IPC_with_client(FILE *fp){
-  int sockfd, status; //file descriptor for the socket
+  int sockfd, status, iter = 0; //file descriptor for the socket
 
   //change this # between 2000-65k before using
   const char* portno="42424";
@@ -193,16 +194,10 @@ void perform_IPC_with_client(FILE *fp){
 
   fprintf(fp, "Connected to client.\n");
 
-  int rows = 26 ,cols = 80;
-  char initial_map[2100];
-  for(int i=0; i< rows*cols; i++ )
-    {
-      if (i%3 == 0)
-      initial_map[i] = ' ';
-      else
-      initial_map[i] = '*';
-    }
-  initial_map[rows*cols] = '\0';
+  int rows = mbp->rows ,cols = mbp->cols;
+  //char initial_map[2100];
+
+
 
   WRITE<int>(new_sockfd, &rows, sizeof(int));
   WRITE<int>(new_sockfd, &cols, sizeof(int));
@@ -217,12 +212,21 @@ void perform_IPC_with_client(FILE *fp){
 
 
 void init_Server_Daemon(string ip_address){
-  int rows, cols;
+  int rows, cols, iter = 0;
   sem_wait(shm_sem);
   mbp = readSharedMemory();
   rows = mbp->rows;
   cols = mbp->cols;
   mbp->daemonID = getpid();
+
+  for (int i=0; i < rows; i++){
+    for(int j=0; j < cols; j++){
+      initial_map[iter] =  mbp->map[iter];
+      iter++;
+    }
+  }
+  initial_map[rows*cols] = '\0';
+
   sem_post(shm_sem);
 
   FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_server.log", "w+");
@@ -240,7 +244,7 @@ void init_Server_Daemon(string ip_address){
 }
 
 void init_Client_Daemon(string ip_address){
-  int rows, cols, goldCount, fd;
+  int rows, cols, goldCount, fd, iter = 0;
   char * mapFile = "mymap.txt";
 
 
@@ -279,7 +283,15 @@ void init_Client_Daemon(string ip_address){
   mbp->cols = cols;
   mbp->player_pids[0] = -1; mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
   mbp->daemonID = -1;
-  initGameMap(mbp, mapVector);
+  //initGameMap(mbp, mapVector);
+
+  for (int i=0; i < rows; i++){
+    for(int j=0; j < cols; j++){
+       mbp->map[iter] = mapVector[i][j];
+       iter++;
+    }
+  }
+
   sem_post(shm_sem);
 
   if ( ( fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) != -1)
