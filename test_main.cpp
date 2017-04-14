@@ -61,7 +61,7 @@ void invoke_in_Daemon( void (*f) (string), string);
 void init_Server_Daemon(string);
 void init_Client_Daemon(string);
 
-vector<vector< char > > perform_IPC_with_server(FILE *fp);
+vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols);
 void perform_IPC_with_client(FILE *fp);
 
 
@@ -83,8 +83,8 @@ void long_sleep(){
   sleep(30);
 }
 
-vector<vector< char > > perform_IPC_with_server(FILE *fp){
-  int sockfd, status, iter = 0; //file descriptor for the socket
+vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols){
+  int sockfd, status; //file descriptor for the socket
   //change this # between 2000-65k before using
   const char* portno="42424";
 
@@ -112,29 +112,24 @@ vector<vector< char > > perform_IPC_with_server(FILE *fp){
 
   fprintf(fp, "Connected to server.\n");
 
-  int rows,cols;
   char initial_map[2100];
 
   READ<int>(sockfd, &rows, sizeof(int));
   READ<int>(sockfd, &cols, sizeof(int));
 
-  vector<vector< char > > mapVector(rows, vector<char> (cols, '*'));
+  vector< char >  mbpVector(rows*cols , '*');
 
   fprintf(fp, "reading from server done. rows - %d cols - %d\n", rows,cols);
 
   READ<char>(sockfd, initial_map, (rows*cols + 1)*sizeof(char));
 
-  for (int i=0; i < rows; i++){
-    for(int j=0; j < cols; j++){
-      mapVector[i][j] = initial_map[iter];
-      iter++;
-    }
-  }
+  for (int i=0; i < rows*cols; i++)
+      mbpVector[i] = initial_map[i];
 
 
   fprintf(fp, "reading from server done map - %s\n", initial_map);
   close(sockfd);
-  return mapVector;
+  return mbpVector;
 
 }
 
@@ -195,9 +190,6 @@ void perform_IPC_with_client(FILE *fp){
   fprintf(fp, "Connected to client.\n");
 
   int rows = mbp->rows ,cols = mbp->cols;
-  //char initial_map[2100];
-
-
 
   WRITE<int>(new_sockfd, &rows, sizeof(int));
   WRITE<int>(new_sockfd, &cols, sizeof(int));
@@ -207,24 +199,19 @@ void perform_IPC_with_client(FILE *fp){
   fprintf(fp, "Writing to client completed.\n");
 
   close(new_sockfd);
-
 }
 
 
 void init_Server_Daemon(string ip_address){
-  int rows, cols, iter = 0;
+  int rows, cols;
   sem_wait(shm_sem);
   mbp = readSharedMemory();
   rows = mbp->rows;
   cols = mbp->cols;
   mbp->daemonID = getpid();
 
-  for (int i=0; i < rows; i++){
-    for(int j=0; j < cols; j++){
-      initial_map[iter] =  mbp->map[iter];
-      iter++;
-    }
-  }
+  for (int i=0; i < rows*cols; i++)
+      initial_map[i] =  mbp->map[i];
   initial_map[rows*cols] = '\0';
 
   sem_post(shm_sem);
@@ -244,33 +231,20 @@ void init_Server_Daemon(string ip_address){
 }
 
 void init_Client_Daemon(string ip_address){
-  int rows, cols, goldCount, fd, iter = 0;
-  char * mapFile = "mymap.txt";
-
-
-  //vector<vector< char > > mapVector(26, vector<char> (80, '*'));
-  //mapVector[0][0] = ' ';mapVector[0][1] = ' ';mapVector[2][2] = ' ';mapVector[3][3] = ' ';
+  int rows, cols, goldCount, fd;
 
   FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_client.log", "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
-  fprintf(fp, "Rece IP Address as : %s\n", ip_address.c_str());
+  fprintf(fp, "Received IP Address as : %s\n", ip_address.c_str());
+  fprintf(fp,"Attempting ClientDaemon Initialize IPC now.\n");
 
 
-  fprintf(fp,"Reading from mapfile now.\n");
-  fflush(fp);
+  vector< char >  mbpVector = perform_IPC_with_server(fp, rows, cols);
+  fprintf(fp, "Reading from server IPC done. rows - %d cols - %d\n", rows,cols);
 
-
-  vector<vector< char > > mapVector = perform_IPC_with_server(fp);
-  rows = mapVector.size();
-  cols = mapVector[0].size();
-
-  fprintf(fp, "read from file done. rows - %d cols - %d\n", rows, cols);
   shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
+
   fprintf(fp,"checkpoint 0.\n");
-  fflush(fp);
-
-
-  fprintf(fp,"checkpoint 1.\n");
   fflush(fp);
 
   sem_wait(shm_sem);
@@ -283,14 +257,9 @@ void init_Client_Daemon(string ip_address){
   mbp->cols = cols;
   mbp->player_pids[0] = -1; mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
   mbp->daemonID = -1;
-  //initGameMap(mbp, mapVector);
 
-  for (int i=0; i < rows; i++){
-    for(int j=0; j < cols; j++){
-       mbp->map[iter] = mapVector[i][j];
-       iter++;
-    }
-  }
+  for (int i=0; i < rows*cols; i++)
+      mbp->map[i] = mbpVector[i];
 
   sem_post(shm_sem);
 
@@ -303,7 +272,7 @@ void init_Client_Daemon(string ip_address){
 
 
 
-  fprintf(fp,"All done in Cliet demon, Killing daemon with pid -%d now.\n", getpid());
+  fprintf(fp,"All done in Client demon, Killing daemon with pid -%d now.\n", getpid());
   fclose(fp);
   exit(0);
 }
