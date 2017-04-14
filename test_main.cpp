@@ -57,9 +57,9 @@ struct mapboard{
   unsigned char map[0];
 };
 
-void invoke_in_Daemon( void (*f) (void));
-void init_Server_Daemon();
-void init_Client_Daemon();
+void invoke_in_Daemon( void (*f) (string));
+void init_Server_Daemon(string);
+void init_Client_Daemon(string);
 
 
 Map * gameMap = NULL;
@@ -79,7 +79,7 @@ void long_sleep(){
 }
 
 
-void init_Server_Daemon(){
+void init_Server_Daemon(string ip_address){
   int rows, cols;
   sem_wait(shm_sem);
   mbp = readSharedMemory();
@@ -99,7 +99,7 @@ void init_Server_Daemon(){
 
 }
 
-void init_Client_Daemon(){
+void init_Client_Daemon(string ip_address){
   int rows, cols, goldCount, fd;
   char * mapFile = "mymap.txt";
 
@@ -109,7 +109,7 @@ void init_Client_Daemon(){
 
   FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_client.log", "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
-
+  fprintf(fp, "Rece IP Address as : %s\n", ip_address.c_str());
 
 
   fprintf(fp,"Reading from mapfile now.\n");
@@ -217,7 +217,7 @@ vector<vector< char > >  getMapVectorFromServerDaemon(){
 
 
 
-void invoke_in_Daemon( void (*f) (void)){
+void invoke_in_Daemon( void (*f) (string)){
 
   if(fork() > 0)
     return;
@@ -236,8 +236,8 @@ void invoke_in_Daemon( void (*f) (void)){
 
   umask(0);
   chdir("/");
-
-  (*f)();
+  string ip_address = "localhost";
+  (*f)(ip_address);
 
 }
 
