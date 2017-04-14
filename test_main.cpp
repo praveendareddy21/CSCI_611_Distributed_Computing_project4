@@ -54,9 +54,9 @@ struct mapboard{
   unsigned char map[0];
 };
 
-void init_Generic_Daemon( void (*f) (void));
-void init_Server_Daemon();
-void init_Client_Daemon();
+void invoke_in_Daemon( void (*f) (string), string);
+void init_Server_Daemon(string);
+void init_Client_Daemon(string);
 
 
 Map * gameMap = NULL;
@@ -72,21 +72,79 @@ int thisPlayer = 0, thisPlayerLoc= 0;
 
 //###########################################################################################################
 
-void init_Server_Daemon(){
+void init_Server_Daemon(string ip_address){
   int rows, cols;
   sem_wait(shm_sem);
   mbp = readSharedMemory();
   rows = mbp->rows;
   cols = mbp->cols;
   mbp->daemonID = getpid();
+
+  for (int i=0; i < rows*cols; i++)
+      initial_map[i] =  mbp->map[i];
+  initial_map[rows*cols] = '\0';
+
   sem_post(shm_sem);
 
-  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase.log", "w+");
+  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_server.log", "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
   fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
   fflush(fp);
-  fclose(fp);
 
+
+  perform_IPC_with_client(fp);
+
+  fprintf(fp,"All done in server demon, Killing daemon with pid -%d now.\n", getpid());
+  fclose(fp);
+  exit(0);
+
+}
+
+void init_Client_Daemon(string ip_address){
+  int rows, cols, goldCount, fd;
+
+  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_client.log", "w+");
+  fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
+  fprintf(fp, "Received IP Address as : %s\n", ip_address.c_str());
+  fprintf(fp,"Attempting ClientDaemon Initialize IPC now.\n");
+
+
+  vector< char >  mbpVector = perform_IPC_with_server(fp, rows, cols);
+  fprintf(fp, "Reading from server IPC done. rows - %d cols - %d\n", rows,cols);
+
+  shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
+
+  fprintf(fp,"checkpoint 0.\n");
+  fflush(fp);
+
+  sem_wait(shm_sem);
+  mbp = initSharedMemory(rows, cols);
+
+  fprintf(fp,"checkpoint 2.\n");
+  fflush(fp);
+
+  mbp->rows = rows;
+  mbp->cols = cols;
+  mbp->player_pids[0] = -1; mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
+  mbp->daemonID = -1;
+
+  for (int i=0; i < rows*cols; i++)
+      mbp->map[i] = mbpVector[i];
+
+  sem_post(shm_sem);
+
+  if ( ( fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) != -1)
+    fprintf(fp,"Shm open successful in client daemon \n");
+  else
+    fprintf(fp,"Shm open failed in client daemon \n");
+
+  fprintf(fp,"initilized Shm, posting semaphore \n");
+
+
+
+  fprintf(fp,"All done in Client demon, Killing daemon with pid -%d now.\n", getpid());
+  fclose(fp);
+  exit(0);
 }
 
 void long_sleep(){
