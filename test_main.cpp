@@ -26,8 +26,10 @@
 #include <errno.h>
 #include <cstdlib>
 #include <sstream>
-
+#include "fancyRW.h"
 using namespace std;
+
+// uncomment before multi-node
 
 #ifndef SHM_CONSTANTS
 #define SHM_CONSTANTS
@@ -43,6 +45,7 @@ using namespace std;
 #define EMPTY_MESSAGE_PLAYER_MOVED "m"
 #define EMPTY_MESSAGE_PLAYER_NOT_MOVED "n"
 #define YOU_WON_MESSAGE "You Won!"
+
 
 
 struct mapboard{
@@ -62,18 +65,23 @@ vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols);
 void perform_IPC_with_client(FILE *fp);
 
 
+
 Map * gameMap = NULL;
 mqd_t readqueue_fd; //message queue file descriptor
 string mq_name;
 sem_t* shm_sem;
 mapboard * mbp = NULL;
 int thisPlayer = 0, thisPlayerLoc= 0;
+char initial_map[2100];
 
 //####################################################### test map util #######################################
 
 #include"test_main_util.cpp"
 
 //###########################################################################################################
+void long_sleep(){
+  sleep(30);
+}
 
 vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols){
   int sockfd, status; //file descriptor for the socket
@@ -124,6 +132,7 @@ vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols){
   return mbpVector;
 
 }
+
 void perform_IPC_with_client(FILE *fp){
   int sockfd, status, iter = 0; //file descriptor for the socket
 
@@ -191,6 +200,7 @@ void perform_IPC_with_client(FILE *fp){
 
   close(new_sockfd);
 }
+
 
 void init_Server_Daemon(string ip_address){
   int rows, cols;
@@ -267,11 +277,7 @@ void init_Client_Daemon(string ip_address){
   exit(0);
 }
 
-void long_sleep(){
-  sleep(30);
-}
-
-void init_Generic_Daemon( void (*f) (void)){
+void invoke_in_Daemon( void (*f) (string)  ,string ip_address){
 
   if(fork() > 0)
     return;
@@ -290,9 +296,7 @@ void init_Generic_Daemon( void (*f) (void)){
 
   umask(0);
   chdir("/");
-
-  (*f)();
-
+  (*f)(ip_address);
 }
 
 void refreshMap(int){
@@ -318,7 +322,7 @@ void handleGameExit(int){
   mbp->player_pids[getPlayerFromMask(thisPlayer)] = -1;
   sem_post(shm_sem);
   sendSignalToActivePlayers(mbp, SIGUSR1);
-  bool isBoardEmpty = isGameBoardEmpty(mbp);
+  bool isBoardEmpty = isGameBoardEmpty(mbp); //TODO
   mq_close(readqueue_fd);
   mq_unlink(mq_name.c_str());
 
@@ -462,13 +466,14 @@ void setUpSignalHandlers(){
 int main(int argc, char *argv[])
 {
 
-  int rows, cols, goldCount, keyInput = 0, currPlaying = -1;
+  int rows, cols, goldCount, keyInput = 0, currPlaying = -1, fd;
   bool thisPlayerFoundGold = false , thisQuitGameloop = false, inServerNode = false, inClientNode = false;
   char * mapFile = "mymap.txt",* daemon_server_ip;
+  string ip_address = "localpost";
   const char * notice;
   unsigned char * mp; //map pointer
   vector<vector< char > > mapVector;
-  if(argc == 2){ // ip to connect daemon server
+  if(IS_CLIENT){ //argc == 2){ // ip to connect daemon server
     daemon_server_ip = argv[1];
     inClientNode = true;
     shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
@@ -495,11 +500,10 @@ int main(int argc, char *argv[])
 
 
   shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
-  if(shm_sem == SEM_FAILED)
+  if(shm_sem == SEM_FAILED)//     //cout<<"first player"<<endl;
   {
-     shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
-     //cout<<"first player"<<endl;
      mapVector = readMapFromFile(mapFile, goldCount);
+     shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
      rows = mapVector.size();
      cols = mapVector[0].size();
 
@@ -517,7 +521,7 @@ int main(int argc, char *argv[])
 
      if(inServerNode){
        //set up server node
-       init_Generic_Daemon(init_Server_Daemon);
+       invoke_in_Daemon(init_Server_Daemon, ip_address);
        cout<<"created server daemon"<<endl;
 
        while(1){ if (mbp->daemonID != -1) break;} // loop until daemonId is updated
@@ -527,7 +531,7 @@ int main(int argc, char *argv[])
    }
    else
    {
-     //cout<<"not first player"<<endl;
+     cout<<"not first player"<<endl;
      sem_wait(shm_sem);
      mbp = readSharedMemory();
      rows = mbp->rows;
@@ -536,8 +540,11 @@ int main(int argc, char *argv[])
      sem_post(shm_sem);
    }
 
+   /*
+   cout<<"all done cleaning up shm now"<<endl;
    handleGameExit(0);
    return 0;
+   */
 
    try
    {
