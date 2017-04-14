@@ -75,6 +75,74 @@ int thisPlayer = 0, thisPlayerLoc= 0;
 
 //###########################################################################################################
 
+void perform_IPC_with_client(FILE *fp){
+  int sockfd, status, iter = 0; //file descriptor for the socket
+
+  //change this # between 2000-65k before using
+  const char* portno="42424";
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
+  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
+  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
+  hints.ai_flags=AI_PASSIVE; //file in the IP of the server for me
+
+  struct addrinfo *servinfo;
+  if((status=getaddrinfo(NULL, portno, &hints, &servinfo))==-1)
+  {
+    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+    exit(1);
+  }
+  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+
+  /*avoid "Address already in use" error*/
+  int yes=1;
+  if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))==-1)
+  {
+    perror("setsockopt");
+    exit(1);
+  }
+
+  //We need to "bind" the socket to the port number so that the kernel
+  //can match an incoming packet on a port to the proper process
+  if((status=bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
+  {
+    perror("bind");
+    exit(1);
+  }
+  //when done, release dynamically allocated memory
+  freeaddrinfo(servinfo);
+
+  if(listen(sockfd,1)==-1)
+  {
+    perror("listen");
+    exit(1);
+  }
+
+  fprintf(fp, "Blocking, waiting for client to connect\n");
+
+  struct sockaddr_in client_addr;
+  socklen_t clientSize=sizeof(client_addr);
+  int new_sockfd;
+  if((new_sockfd=accept(sockfd, (struct sockaddr*) &client_addr, &clientSize))==-1)
+  {
+    perror("accept");
+    exit(1);
+  }
+
+  fprintf(fp, "Connected to client.\n");
+
+  int rows = mbp->rows ,cols = mbp->cols;
+
+  WRITE<int>(new_sockfd, &rows, sizeof(int));
+  WRITE<int>(new_sockfd, &cols, sizeof(int));
+
+  WRITE<char>(new_sockfd, initial_map, (rows*cols + 1)*sizeof(char));
+
+  fprintf(fp, "Writing to client completed.\n");
+
+  close(new_sockfd);
+}
+
 void init_Server_Daemon(string ip_address){
   int rows, cols;
   sem_wait(shm_sem);
