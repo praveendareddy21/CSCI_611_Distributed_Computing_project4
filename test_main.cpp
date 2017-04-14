@@ -39,7 +39,7 @@ using namespace std;
 #define IS_CLIENT 0
 #endif
 
-#define PORT "42425"
+#define PORT "42425"  //change this # between 2000-65k before using
 #define REAL_GOLD_MESSAGE "You found Real Gold!!"
 #define FAKE_GOLD_MESSAGE "You found Fool's Gold!!"
 #define EMPTY_MESSAGE_PLAYER_MOVED "m"
@@ -61,7 +61,7 @@ void invoke_in_Daemon( void (*f) (string), string);
 void init_Server_Daemon(string);
 void init_Client_Daemon(string);
 
-vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols);
+vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols, string ip_address);
 void perform_IPC_with_client(FILE *fp);
 
 
@@ -83,10 +83,9 @@ void long_sleep(){
   sleep(30);
 }
 
-vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols){
+vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols, string ip_address){
   int sockfd, status; //file descriptor for the socket
-  //change this # between 2000-65k before using
-  const char* portno="42424";
+  const char* portno= PORT;
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints)); //zero out everything in structure
@@ -96,20 +95,15 @@ vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols){
   struct addrinfo *servinfo;
   //instead of "localhost", it could by any domain name
   if((status=getaddrinfo("localhost", portno, &hints, &servinfo))==-1)
-  {
-    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
-    exit(1);
-  }
+  {fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));exit(1);}
+
   sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
 
   if((status=connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
-  {
-    perror("connect");
-    exit(1);
-  }
+  {perror("connect");exit(1);}
+
   //release the information allocated by getaddrinfo()
   freeaddrinfo(servinfo);
-
   fprintf(fp, "Connected to server.\n");
 
   char initial_map[2100];
@@ -118,7 +112,6 @@ vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols){
   READ<int>(sockfd, &cols, sizeof(int));
 
   vector< char >  mbpVector(rows*cols , '*');
-
   fprintf(fp, "reading from server done. rows - %d cols - %d\n", rows,cols);
 
   READ<char>(sockfd, initial_map, (rows*cols + 1)*sizeof(char));
@@ -126,19 +119,16 @@ vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols){
   for (int i=0; i < rows*cols; i++)
       mbpVector[i] = initial_map[i];
 
-
   fprintf(fp, "reading from server done map - %s\n", initial_map);
   close(sockfd);
   return mbpVector;
-
 }
 
 void perform_IPC_with_client(FILE *fp){
-  int sockfd, status, iter = 0; //file descriptor for the socket
-
-  //change this # between 2000-65k before using
-  const char* portno="42424";
+  int sockfd, status, rows, cols, iter = 0; //file descriptor for the socket
+  const char* portno = PORT;
   struct addrinfo hints;
+
   memset(&hints, 0, sizeof(hints)); //zero out everything in structure
   hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
   hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
@@ -146,35 +136,25 @@ void perform_IPC_with_client(FILE *fp){
 
   struct addrinfo *servinfo;
   if((status=getaddrinfo(NULL, portno, &hints, &servinfo))==-1)
-  {
-    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
-    exit(1);
-  }
+  {fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));exit(1);}
+
   sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
 
   /*avoid "Address already in use" error*/
   int yes=1;
   if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))==-1)
-  {
-    perror("setsockopt");
-    exit(1);
-  }
+  {perror("setsockopt");exit(1);}
 
   //We need to "bind" the socket to the port number so that the kernel
   //can match an incoming packet on a port to the proper process
   if((status=bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
-  {
-    perror("bind");
-    exit(1);
-  }
+  {perror("bind");exit(1);}
+
   //when done, release dynamically allocated memory
   freeaddrinfo(servinfo);
 
   if(listen(sockfd,1)==-1)
-  {
-    perror("listen");
-    exit(1);
-  }
+  {perror("listen");exit(1);}
 
   fprintf(fp, "Blocking, waiting for client to connect\n");
 
@@ -182,22 +162,18 @@ void perform_IPC_with_client(FILE *fp){
   socklen_t clientSize=sizeof(client_addr);
   int new_sockfd;
   if((new_sockfd=accept(sockfd, (struct sockaddr*) &client_addr, &clientSize))==-1)
-  {
-    perror("accept");
-    exit(1);
-  }
+  {perror("accept");exit(1);}
 
   fprintf(fp, "Connected to client.\n");
 
-  int rows = mbp->rows ,cols = mbp->cols;
+  rows = mbp->rows;
+  cols = mbp->cols;
 
   WRITE<int>(new_sockfd, &rows, sizeof(int));
   WRITE<int>(new_sockfd, &cols, sizeof(int));
-
   WRITE<char>(new_sockfd, initial_map, (rows*cols + 1)*sizeof(char));
 
   fprintf(fp, "Writing to client completed.\n");
-
   close(new_sockfd);
 }
 
@@ -239,7 +215,7 @@ void init_Client_Daemon(string ip_address){
   fprintf(fp,"Attempting ClientDaemon Initialize IPC now.\n");
 
 
-  vector< char >  mbpVector = perform_IPC_with_server(fp, rows, cols);
+  vector< char >  mbpVector = perform_IPC_with_server(fp, rows, cols, ip_address);
   fprintf(fp, "Reading from server IPC done. rows - %d cols - %d\n", rows,cols);
 
   shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
