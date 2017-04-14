@@ -58,6 +58,9 @@ void invoke_in_Daemon( void (*f) (string), string);
 void init_Server_Daemon(string);
 void init_Client_Daemon(string);
 
+vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols);
+void perform_IPC_with_client(FILE *fp);
+
 
 Map * gameMap = NULL;
 mqd_t readqueue_fd; //message queue file descriptor
