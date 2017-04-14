@@ -57,7 +57,7 @@ struct mapboard{
   unsigned char map[0];
 };
 
-void invoke_in_Daemon( void (*f) (string));
+void invoke_in_Daemon( void (*f) (string), string);
 void init_Server_Daemon(string);
 void init_Client_Daemon(string);
 
@@ -156,68 +156,7 @@ void init_Client_Daemon(string ip_address){
   exit(0);
 }
 
-
-vector<vector< char > >  getMapVectorFromServerDaemon(){
-  int rows, cols;
-  //vector<vector< char > > mapVector;
-  vector<vector< char > > mapVector(26, vector<char> (80, '*'));
-  vector< char > temp;
-  string line;
-  char c;
-
-  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_client.log", "w+");
-  fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
-  fflush(fp);
-  int sockfd, status; //file descriptor for the socket
-
-  //change this # between 2000-65k before using
-  const char* portno=PORT;
-
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
-  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
-  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
-
-  struct addrinfo *servinfo;
-  //instead of "localhost", it could by any domain name
-  if((status=getaddrinfo("localhost", portno, &hints, &servinfo))==-1)
-  {
-    fprintf(fp, "getaddrinfo error: %s\n", gai_strerror(status));
-    exit(1);
-  }
-  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
-
-  if((status=connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
-  {
-    perror("connect");
-    exit(1);
-  }
-  //release the information allocated by getaddrinfo()
-  freeaddrinfo(servinfo);
-
-  const char* message="One small step for (a) man, one large  leap for Mankind";
-  int n;
-
-  WRITE<char> (sockfd, "To", 2);
-  WRITE<char> (sockfd, "dd", 2);
-  WRITE<char> (sockfd, "Gibso", 5);
-  WRITE<char> (sockfd, "n", 1);
-
-  fclose(fp);
-  return mapVector;
-
-  fprintf(fp,"client wrote %d characters\n", 11);
-  char buffer[100];
-  memset(buffer, 0, 100);
-  read(sockfd, buffer, 99);
-  fprintf(fp, "%s\n", buffer);
-  close(sockfd);
-  return mapVector;
-}
-
-
-
-void invoke_in_Daemon( void (*f) (string)){
+void invoke_in_Daemon( void (*f) (string)  ,string ip_address){
 
   if(fork() > 0)
     return;
@@ -236,9 +175,7 @@ void invoke_in_Daemon( void (*f) (string)){
 
   umask(0);
   chdir("/");
-  string ip_address = "localhost";
   (*f)(ip_address);
-
 }
 
 void refreshMap(int){
@@ -411,6 +348,7 @@ int main(int argc, char *argv[])
   int rows, cols, goldCount, keyInput = 0, currPlaying = -1, fd;
   bool thisPlayerFoundGold = false , thisQuitGameloop = false, inServerNode = false, inClientNode = false;
   char * mapFile = "mymap.txt",* daemon_server_ip;
+  string ip_address = "localpost";
   const char * notice;
   unsigned char * mp; //map pointer
   vector<vector< char > > mapVector;
@@ -420,7 +358,7 @@ int main(int argc, char *argv[])
     shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
     if(shm_sem == SEM_FAILED)//     semaphore and shm not initilized on client;
     {
-      invoke_in_Daemon(init_Client_Daemon);
+      invoke_in_Daemon(init_Client_Daemon, ip_address);
       // wait loop until shm is inited by client daemon
 
       while(1){ // loop until mbp is updated
@@ -443,17 +381,6 @@ int main(int argc, char *argv[])
   shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
   if(shm_sem == SEM_FAILED)//     //cout<<"first player"<<endl;
   {
-    /*
-     if(inClientNode){
-       // setup client demon
-       invoke_in_Daemon(init_Client_Daemon);
-       //mapVector = getMapVectorFromServerDaemon();
-       mapVector = readMapFromFile(mapFile, goldCount); // remove later
-
-     }else{ // not in client node, load map from mapFile
-            mapVector = readMapFromFile(mapFile, goldCount);
-     } */
-
      mapVector = readMapFromFile(mapFile, goldCount);
      shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
      rows = mapVector.size();
@@ -473,7 +400,7 @@ int main(int argc, char *argv[])
 
      if(inServerNode){
        //set up server node
-       invoke_in_Daemon(init_Server_Daemon);
+       invoke_in_Daemon(init_Server_Daemon, ip_address);
        cout<<"created server daemon"<<endl;
 
        while(1){ if (mbp->daemonID != -1) break;} // loop until daemonId is updated
