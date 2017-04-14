@@ -351,6 +351,23 @@ int main(int argc, char *argv[])
   if(argc == 2){ // ip to connect daemon server
     daemon_server_ip = argv[1];
     inClientNode = true;
+    shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
+    if(shm_sem == SEM_FAILED)//     semaphore and shm not initilized on client;
+    {
+      invoke_in_Daemon(init_Client_Daemon, ip_address);
+      // wait loop until shm is inited by client daemon
+
+      while(1){ // loop until mbp is updated
+        sleep(2);
+        if ( (fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)
+          cout<<"shm not set"<<endl;
+        else{
+          cout<<"shm set"<<endl;
+          break;
+        }
+        sleep(1);
+      }
+    }
 
   }else{
     inServerNode = true;
@@ -360,9 +377,6 @@ int main(int argc, char *argv[])
   shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
   if(shm_sem == SEM_FAILED)
   {
-     if(inClientNode){
-       // setup client demon
-     }
      shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
      //cout<<"first player"<<endl;
      mapVector = readMapFromFile(mapFile, goldCount);
