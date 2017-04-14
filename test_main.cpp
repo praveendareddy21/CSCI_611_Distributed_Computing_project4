@@ -93,15 +93,14 @@ void init_Server_Daemon(){
   fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
   fflush(fp);
 
-  fprintf(fp,"All done in Server demon, Shutting down.\n");
+  fprintf(fp,"All done in server demon, Killing daemon with pid -%d now.\n", getpid());
   fclose(fp);
-  //long_sleep();
-  return;
+  exit(0);
 
 }
 
 void init_Client_Daemon(){
-  int rows, cols, goldCount;
+  int rows, cols, goldCount, fd;
   char * mapFile = "mymap.txt";
 
   //vector<vector< char > > mapVector;
@@ -140,15 +139,21 @@ void init_Client_Daemon(){
   mbp->player_pids[0] = -1; mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
   mbp->daemonID = -1;
   initGameMap(mbp, mapVector);
-
   sem_post(shm_sem);
+
+  if ( ( fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) != -1)
+    fprintf(fp,"Shm open successful in client daemon \n");
+  else
+    fprintf(fp,"Shm open failed in client daemon \n");
+
+
 
   fprintf(fp,"initilized Shm, posting semaphore \n");
 
 
-  fprintf(fp,"All done in Cliet demon, Shutting down.\n");
+  fprintf(fp,"All done in Cliet demon, Killing daemon with pid -%d now.\n", getpid());
   fclose(fp);
-  return;
+  exit(0);
 }
 
 
@@ -259,7 +264,7 @@ void handleGameExit(int){
   mbp->player_pids[getPlayerFromMask(thisPlayer)] = -1;
   sem_post(shm_sem);
   sendSignalToActivePlayers(mbp, SIGUSR1);
-  bool isBoardEmpty = isGameBoardEmpty(mbp);
+  bool isBoardEmpty = isGameBoardEmpty(mbp); //TODO
   mq_close(readqueue_fd);
   mq_unlink(mq_name.c_str());
 
@@ -487,9 +492,11 @@ int main(int argc, char *argv[])
      sem_post(shm_sem);
    }
 
+   /*
    cout<<"all done cleaning up shm now"<<endl;
    handleGameExit(0);
    return 0;
+   */
 
    try
    {
