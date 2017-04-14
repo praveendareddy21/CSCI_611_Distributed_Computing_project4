@@ -61,6 +61,10 @@ void invoke_in_Daemon( void (*f) (string), string);
 void init_Server_Daemon(string);
 void init_Client_Daemon(string);
 
+vector<vector< char > > perform_IPC_with_server(FILE *fp);
+void perform_IPC_with_client(FILE *fp);
+
+
 
 Map * gameMap = NULL;
 mqd_t readqueue_fd; //message queue file descriptor
@@ -78,6 +82,139 @@ void long_sleep(){
   sleep(30);
 }
 
+vector<vector< char > > perform_IPC_with_server(FILE *fp){
+  int sockfd, status, iter = 0; //file descriptor for the socket
+  //change this # between 2000-65k before using
+  const char* portno="42424";
+
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
+  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
+  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
+
+  struct addrinfo *servinfo;
+  //instead of "localhost", it could by any domain name
+  if((status=getaddrinfo("localhost", portno, &hints, &servinfo))==-1)
+  {
+    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+    exit(1);
+  }
+  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+
+  if((status=connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
+  {
+    perror("connect");
+    exit(1);
+  }
+  //release the information allocated by getaddrinfo()
+  freeaddrinfo(servinfo);
+
+  fprintf(fp, "Connected to server.\n");
+
+  int rows,cols;
+  char initial_map[2100];
+
+  READ<int>(sockfd, &rows, sizeof(int));
+  READ<int>(sockfd, &cols, sizeof(int));
+
+  vector<vector< char > > mapVector(rows, vector<char> (cols, '*'));
+
+  fprintf(fp, "reading from server done. rows - %d cols - %d\n", rows,cols);
+
+  READ<char>(sockfd, initial_map, (rows*cols + 1)*sizeof(char));
+
+  for (int i=0; i < rows; i++){
+    for(int j=0; j < cols; j++){
+      mapVector[i][j] = initial_map[iter];
+      iter++;
+    }
+  }
+
+
+  fprintf(fp, "reading from server done map - %s\n", initial_map);
+  close(sockfd);
+  return mapVector;
+
+}
+
+void perform_IPC_with_client(FILE *fp){
+  int sockfd, status; //file descriptor for the socket
+
+  //change this # between 2000-65k before using
+  const char* portno="42424";
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
+  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
+  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
+  hints.ai_flags=AI_PASSIVE; //file in the IP of the server for me
+
+  struct addrinfo *servinfo;
+  if((status=getaddrinfo(NULL, portno, &hints, &servinfo))==-1)
+  {
+    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+    exit(1);
+  }
+  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+
+  /*avoid "Address already in use" error*/
+  int yes=1;
+  if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))==-1)
+  {
+    perror("setsockopt");
+    exit(1);
+  }
+
+  //We need to "bind" the socket to the port number so that the kernel
+  //can match an incoming packet on a port to the proper process
+  if((status=bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
+  {
+    perror("bind");
+    exit(1);
+  }
+  //when done, release dynamically allocated memory
+  freeaddrinfo(servinfo);
+
+  if(listen(sockfd,1)==-1)
+  {
+    perror("listen");
+    exit(1);
+  }
+
+  fprintf(fp, "Blocking, waiting for client to connect\n");
+
+  struct sockaddr_in client_addr;
+  socklen_t clientSize=sizeof(client_addr);
+  int new_sockfd;
+  if((new_sockfd=accept(sockfd, (struct sockaddr*) &client_addr, &clientSize))==-1)
+  {
+    perror("accept");
+    exit(1);
+  }
+
+  fprintf(fp, "Connected to client.\n");
+
+  int rows = 26 ,cols = 80;
+  char initial_map[2100];
+  for(int i=0; i< rows*cols; i++ )
+    {
+      if (i%3 == 0)
+      initial_map[i] = ' ';
+      else
+      initial_map[i] = '*';
+    }
+  initial_map[rows*cols] = '\0';
+
+  WRITE<int>(new_sockfd, &rows, sizeof(int));
+  WRITE<int>(new_sockfd, &cols, sizeof(int));
+
+  WRITE<char>(new_sockfd, initial_map, (rows*cols + 1)*sizeof(char));
+
+  fprintf(fp, "Writing to client completed.\n");
+
+  close(new_sockfd);
+
+}
+
 
 void init_Server_Daemon(string ip_address){
   int rows, cols;
@@ -93,6 +230,9 @@ void init_Server_Daemon(string ip_address){
   fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
   fflush(fp);
 
+
+  perform_IPC_with_client(fp);
+
   fprintf(fp,"All done in server demon, Killing daemon with pid -%d now.\n", getpid());
   fclose(fp);
   exit(0);
@@ -103,9 +243,9 @@ void init_Client_Daemon(string ip_address){
   int rows, cols, goldCount, fd;
   char * mapFile = "mymap.txt";
 
-  //vector<vector< char > > mapVector;
-  vector<vector< char > > mapVector(26, vector<char> (80, '*'));
-  mapVector[0][0] = ' ';mapVector[0][1] = ' ';mapVector[2][2] = ' ';mapVector[3][3] = ' ';
+
+  //vector<vector< char > > mapVector(26, vector<char> (80, '*'));
+  //mapVector[0][0] = ' ';mapVector[0][1] = ' ';mapVector[2][2] = ' ';mapVector[3][3] = ' ';
 
   FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_client.log", "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
@@ -115,7 +255,8 @@ void init_Client_Daemon(string ip_address){
   fprintf(fp,"Reading from mapfile now.\n");
   fflush(fp);
 
-  //mapVector = readMapFromFile(mapFile, goldCount);
+
+  vector<vector< char > > mapVector = perform_IPC_with_server(fp);
   rows = mapVector.size();
   cols = mapVector[0].size();
 
@@ -146,9 +287,8 @@ void init_Client_Daemon(string ip_address){
   else
     fprintf(fp,"Shm open failed in client daemon \n");
 
-
-
   fprintf(fp,"initilized Shm, posting semaphore \n");
+
 
 
   fprintf(fp,"All done in Cliet demon, Killing daemon with pid -%d now.\n", getpid());
