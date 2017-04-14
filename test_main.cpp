@@ -75,6 +75,55 @@ int thisPlayer = 0, thisPlayerLoc= 0;
 
 //###########################################################################################################
 
+vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols){
+  int sockfd, status; //file descriptor for the socket
+  //change this # between 2000-65k before using
+  const char* portno="42424";
+
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
+  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
+  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
+
+  struct addrinfo *servinfo;
+  //instead of "localhost", it could by any domain name
+  if((status=getaddrinfo("localhost", portno, &hints, &servinfo))==-1)
+  {
+    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+    exit(1);
+  }
+  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+
+  if((status=connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
+  {
+    perror("connect");
+    exit(1);
+  }
+  //release the information allocated by getaddrinfo()
+  freeaddrinfo(servinfo);
+
+  fprintf(fp, "Connected to server.\n");
+
+  char initial_map[2100];
+
+  READ<int>(sockfd, &rows, sizeof(int));
+  READ<int>(sockfd, &cols, sizeof(int));
+
+  vector< char >  mbpVector(rows*cols , '*');
+
+  fprintf(fp, "reading from server done. rows - %d cols - %d\n", rows,cols);
+
+  READ<char>(sockfd, initial_map, (rows*cols + 1)*sizeof(char));
+
+  for (int i=0; i < rows*cols; i++)
+      mbpVector[i] = initial_map[i];
+
+
+  fprintf(fp, "reading from server done map - %s\n", initial_map);
+  close(sockfd);
+  return mbpVector;
+
+}
 void perform_IPC_with_client(FILE *fp){
   int sockfd, status, iter = 0; //file descriptor for the socket
 
