@@ -97,30 +97,50 @@ void init_Server_Daemon(){
   fclose(fp);
   //long_sleep();
   return;
-  
+
 }
 
 void init_Client_Daemon(){
-  int rows, cols;
+  int rows, cols, goldCount;
+  char * mapFile = "mymap.txt";
+
+  //vector<vector< char > > mapVector;
+  vector<vector< char > > mapVector(26, vector<char> (80, '*'));
+  mapVector[0][0] = ' ';mapVector[0][1] = ' ';mapVector[2][2] = ' ';mapVector[3][3] = ' ';
 
   FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_client.log", "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
-  fflush(fp);
+
 
 
   fprintf(fp,"Reading from mapfile now.\n");
-  mapVector = readMapFromFile(mapFile, goldCount);
-  shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
+  fflush(fp);
+
+  //mapVector = readMapFromFile(mapFile, goldCount);
   rows = mapVector.size();
   cols = mapVector[0].size();
 
+  fprintf(fp, "read from file done. rows - %d cols - %d\n", rows, cols);
+  shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
+  fprintf(fp,"checkpoint 0.\n");
+  fflush(fp);
+
+
+  fprintf(fp,"checkpoint 1.\n");
+  fflush(fp);
+
   sem_wait(shm_sem);
   mbp = initSharedMemory(rows, cols);
+
+  fprintf(fp,"checkpoint 2.\n");
+  fflush(fp);
+
   mbp->rows = rows;
   mbp->cols = cols;
   mbp->player_pids[0] = -1; mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
   mbp->daemonID = -1;
   initGameMap(mbp, mapVector);
+
   sem_post(shm_sem);
 
   fprintf(fp,"initilized Shm, posting semaphore \n");
@@ -383,7 +403,7 @@ void setUpSignalHandlers(){
 int main(int argc, char *argv[])
 {
 
-  int rows, cols, goldCount, keyInput = 0, currPlaying = -1;
+  int rows, cols, goldCount, keyInput = 0, currPlaying = -1, fd;
   bool thisPlayerFoundGold = false , thisQuitGameloop = false, inServerNode = false, inClientNode = false;
   char * mapFile = "mymap.txt",* daemon_server_ip;
   const char * notice;
@@ -399,13 +419,15 @@ int main(int argc, char *argv[])
       // wait loop until shm is inited by client daemon
 
       while(1){ // loop until mbp is updated
-        if (mbp == NULL)
-          cout<<"mbp not set";
+        sleep(2);
+        if ( (fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)
+          cout<<"shm not set"<<endl;
         else{
-          cout<<"mbp set";
+          cout<<"shm set"<<endl;
           break;
-        } 
-      } 
+        }
+        sleep(1);
+      }
     }
 
   }else{
@@ -456,7 +478,7 @@ int main(int argc, char *argv[])
    }
    else
    {
-     //cout<<"not first player"<<endl;
+     cout<<"not first player"<<endl;
      sem_wait(shm_sem);
      mbp = readSharedMemory();
      rows = mbp->rows;

@@ -16,4 +16,4 @@ Map.o: Map.cpp Map.h
 	g++ -c Map.cpp
 
 clean:
-	rm -f Screen.o Map.o libmap.a test_main server client
+	rm -f Screen.o Map.o libmap.a test_main server client *.log
