@@ -236,6 +236,15 @@ void process_Socket_Map(FILE *fp, char protocol_type){
     mapChangesVector.push_back(make_pair(changedMapId,changedMapValue));
   }
 
+  fprintf(fp, "in server : Vector_size %d\n",mapChangesVector.size());
+  fprintf(fp, "in server : printing mapChangesVector\n");
+
+  for(int i = 0; i<Vector_size; i++){
+    changedMapId = mapChangesVector[i].first;
+    changedMapValue = mapChangesVector[i].second;
+    fprintf(fp, "Id : %d --- Value : %c\n", changedMapId, changedMapValue);
+  }
+
 }
 
 
@@ -304,6 +313,8 @@ void init_Server_Daemon(string ip_address){
 
   sem_post(shm_sem);
 
+  setUpDaemonSignalHandlers();
+
   FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_server.log", "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
   fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
@@ -314,14 +325,14 @@ void init_Server_Daemon(string ip_address){
 
   //write_fd = get_Write_Socket_fd(fp);
 
-  setUpDaemonSignalHandlers();
+
 
   int count =0;
   while(count < 30){
     sleep(1);
     count++;
   }
-  
+
   char protocol_type = 1;
   WRITE <char>(write_fd, &protocol_type, sizeof(char));
   close(write_fd);
@@ -695,6 +706,10 @@ int main(int argc, char *argv[])
          else if(notice == EMPTY_MESSAGE_PLAYER_MOVED ){
            sendSignalToActivePlayers(mbp, SIGUSR1);
            (*gameMap).drawMap();
+
+           if(mbp->daemonID != -1){
+             kill(mbp->daemonID, SIGUSR1);
+           }
          }
 
 
