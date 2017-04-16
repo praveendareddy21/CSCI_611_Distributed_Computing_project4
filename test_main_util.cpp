@@ -353,3 +353,100 @@ int get_Write_Socket_fd(){
   printf("Connected to server.\n");
   return sockfd;
 }
+
+vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols, string ip_address){
+  int sockfd, status; //file descriptor for the socket
+  const char* portno= PORT;
+
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
+  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
+  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
+
+  struct addrinfo *servinfo;
+  //instead of "localhost", it could by any domain name
+  if((status=getaddrinfo("localhost", portno, &hints, &servinfo))==-1)
+  {fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));exit(1);}
+
+  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+
+  if((status=connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
+  {perror("connect");exit(1);}
+
+  //release the information allocated by getaddrinfo()
+  freeaddrinfo(servinfo);
+  fprintf(fp, "Connected to server.\n");
+
+  char initial_map[2100];
+
+  READ<int>(sockfd, &rows, sizeof(int));
+  READ<int>(sockfd, &cols, sizeof(int));
+
+  vector< char >  mbpVector(rows*cols , '*');
+  fprintf(fp, "reading from server done. rows - %d cols - %d\n", rows,cols);
+
+  READ<char>(sockfd, initial_map, (rows*cols + 1)*sizeof(char));
+
+  for (int i=0; i < rows*cols; i++)
+      mbpVector[i] = initial_map[i];
+
+  fprintf(fp, "reading from server done map - %s\n", initial_map);
+
+  // TODO Socket Player  i char read with OR'ing of active players
+
+  close(sockfd);
+  return mbpVector;
+}
+
+void perform_IPC_with_client(FILE *fp){
+  int sockfd, status, rows, cols, iter = 0; //file descriptor for the socket
+  const char* portno = PORT;
+  struct addrinfo hints;
+
+  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
+  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
+  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
+  hints.ai_flags=AI_PASSIVE; //file in the IP of the server for me
+
+  struct addrinfo *servinfo;
+  if((status=getaddrinfo(NULL, portno, &hints, &servinfo))==-1)
+  {fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));exit(1);}
+
+  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+
+  /*avoid "Address already in use" error*/
+  int yes=1;
+  if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))==-1)
+  {perror("setsockopt");exit(1);}
+
+  //We need to "bind" the socket to the port number so that the kernel
+  //can match an incoming packet on a port to the proper process
+  if((status=bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
+  {perror("bind");exit(1);}
+
+  //when done, release dynamically allocated memory
+  freeaddrinfo(servinfo);
+
+  if(listen(sockfd,1)==-1)
+  {perror("listen");exit(1);}
+
+  fprintf(fp, "Blocking, waiting for client to connect\n");
+
+  struct sockaddr_in client_addr;
+  socklen_t clientSize=sizeof(client_addr);
+  int new_sockfd;
+  if((new_sockfd=accept(sockfd, (struct sockaddr*) &client_addr, &clientSize))==-1)
+  {perror("accept");exit(1);}
+
+  fprintf(fp, "Connected to client.\n");
+
+  rows = mbp->rows;
+  cols = mbp->cols;
+
+  WRITE<int>(new_sockfd, &rows, sizeof(int));
+  WRITE<int>(new_sockfd, &cols, sizeof(int));
+  WRITE<char>(new_sockfd, initial_map, (rows*cols + 1)*sizeof(char));
+  fprintf(fp, "Writing to client for client Initialization completed.\n");
+
+  close(new_sockfd);
+}
