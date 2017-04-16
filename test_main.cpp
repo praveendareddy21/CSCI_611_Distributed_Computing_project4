@@ -63,7 +63,14 @@ void init_Client_Daemon(string);
 
 vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols, string ip_address);
 void perform_IPC_with_client(FILE *fp);
+void send_Socket_Message(char PLR_MASK, string msg);
+void send_Socket_Player(char PLR_MASK);
+void send_Socket_Map(vector< pair<short, char> > mapChangesVector);
 
+void socket_Communication_Handler();
+void process_Socket_Message(char protocol_type);
+void process_Socket_Player(char protocol_type);
+void process_Socket_Map(char protocol_type);
 
 
 Map * gameMap = NULL;
@@ -73,6 +80,8 @@ sem_t* shm_sem;
 mapboard * mbp = NULL;
 int thisPlayer = 0, thisPlayerLoc= 0;
 char initial_map[2100];
+int write_fd = -1;
+int read_fd = -1;
 
 //####################################################### test map util #######################################
 
