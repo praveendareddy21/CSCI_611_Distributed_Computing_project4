@@ -310,6 +310,21 @@ void init_Server_Daemon(string ip_address){
 
   perform_IPC_with_client(fp);
 
+  write_fd = get_Write_Socket_fd();
+
+  //setUpDaemonSignalHandlers();
+  /*
+  int count =0;
+  while(count < 30){
+    sleep(1);
+    count++;
+  }
+  */
+
+  char protocol_type = 1;
+  WRITE <char>(write_fd, &protocol_type, sizeof(char));
+
+
   fprintf(fp,"All done in server demon, Killing daemon with pid -%d now.\n", getpid());
   fclose(fp);
   exit(0);
@@ -356,6 +371,13 @@ void init_Client_Daemon(string ip_address){
 
   fprintf(fp,"initilized Shm, posting semaphore \n");
 
+
+  read_fd = get_Read_Socket_fd();
+  fprintf(fp, "Entering infinite loop with blocking read now.\n");
+  while(1){
+    socket_Communication_Handler(fp);
+    sleep(1);
+  }
 
 
   fprintf(fp,"All done in Client demon, Killing daemon with pid -%d now.\n", getpid());
