@@ -261,3 +261,95 @@ string itos_utility(int i){
   out << i;
   return out.str();
 }
+
+int get_Read_Socket_fd(){
+  int sockfd; //file descriptor for the socket
+ int status; //for error checking
+
+
+ //change this # between 2000-65k before using
+ const char* portno="42424";
+ struct addrinfo hints;
+ memset(&hints, 0, sizeof(hints)); //zero out everything in structure
+ hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
+ hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
+ hints.ai_flags=AI_PASSIVE; //file in the IP of the server for me
+
+ struct addrinfo *servinfo;
+ if((status=getaddrinfo(NULL, portno, &hints, &servinfo))==-1)
+ {
+   fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+   exit(1);
+ }
+ sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+
+ /*avoid "Address already in use" error*/
+ int yes=1;
+ if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))==-1)
+ {
+   perror("setsockopt");
+   exit(1);
+ }
+
+ //We need to "bind" the socket to the port number so that the kernel
+ //can match an incoming packet on a port to the proper process
+ if((status=bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
+ {
+   perror("bind");
+   exit(1);
+ }
+ //when done, release dynamically allocated memory
+ freeaddrinfo(servinfo);
+
+ if(listen(sockfd,1)==-1)
+ {
+   perror("listen");
+   exit(1);
+ }
+
+ printf("Blocking, waiting for client to connect\n");
+
+ struct sockaddr_in client_addr;
+ socklen_t clientSize=sizeof(client_addr);
+ int new_sockfd;
+ if((new_sockfd=accept(sockfd, (struct sockaddr*) &client_addr, &clientSize))==-1)
+ {
+   perror("accept");
+   exit(1);
+ }
+ printf("Connected to client.\n");
+ return new_sockfd;
+}
+
+int get_Write_Socket_fd(){
+  int sockfd; //file descriptor for the socket
+  int status; //for error checking
+
+  //change this # between 2000-65k before using
+  const char* portno="42424";
+
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
+  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
+  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
+
+  struct addrinfo *servinfo;
+  //instead of "localhost", it could by any domain name
+  if((status=getaddrinfo("localhost", portno, &hints, &servinfo))==-1)
+  {
+    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+    exit(1);
+  }
+  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+
+  if((status=connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
+  {
+    perror("connect");
+    exit(1);
+  }
+  //release the information allocated by getaddrinfo()
+  freeaddrinfo(servinfo);
+
+  printf("Connected to server.\n");
+  return sockfd;
+}
