@@ -314,14 +314,14 @@ void init_Server_Daemon(string ip_address){
 
   //write_fd = get_Write_Socket_fd(fp);
 
-  //setUpDaemonSignalHandlers();
-  /*
+  setUpDaemonSignalHandlers();
+
   int count =0;
   while(count < 30){
     sleep(1);
     count++;
   }
-  */
+  
   char protocol_type = 1;
   WRITE <char>(write_fd, &protocol_type, sizeof(char));
   close(write_fd);
