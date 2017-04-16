@@ -39,7 +39,7 @@ using namespace std;
 #define IS_CLIENT 0
 #endif
 
-#define PORT "42425"  //change this # between 2000-65k before using
+#define PORT "42424"  //change this # between 2000-65k before using
 #define REAL_GOLD_MESSAGE "You found Real Gold!!"
 #define FAKE_GOLD_MESSAGE "You found Fool's Gold!!"
 #define EMPTY_MESSAGE_PLAYER_MOVED "m"
@@ -67,10 +67,11 @@ void send_Socket_Message(char PLR_MASK, string msg);
 void send_Socket_Player(char PLR_MASK);
 void send_Socket_Map(vector< pair<short, char> > mapChangesVector);
 
-void socket_Communication_Handler();
-void process_Socket_Message(char protocol_type);
-void process_Socket_Player(char protocol_type);
-void process_Socket_Map(char protocol_type);
+void socket_Communication_Handler(FILE *fp);
+void process_Socket_Message(FILE *fp, char protocol_type);
+void process_Socket_Player(FILE *fp, char protocol_type);
+void process_Socket_Map(FILE *fp, char protocol_type);
+void handleGameExit(int);
 
 
 Map * gameMap = NULL;
@@ -83,6 +84,7 @@ char initial_map[2100];
 int write_fd = -1;
 int read_fd = -1;
 
+
 //####################################################### test map util #######################################
 
 #include"test_main_util.cpp"
@@ -91,13 +93,17 @@ int read_fd = -1;
 void long_sleep(){
   sleep(30);
 }
-
 void send_Socket_Player(char PLR_MASK){
   char protocol_type = G_SOCKPLR;
   protocol_type |= PLR_MASK;
 
   WRITE <char>(write_fd, &protocol_type, sizeof(char));
   return;
+}
+
+void socket_Player_signal_handler(int){
+  char plr_mask = getActivePlayersMask();
+  send_Socket_Player(plr_mask);
 }
 
 void send_Socket_Message(char PLR_MASK, string msg){
@@ -115,6 +121,10 @@ void send_Socket_Message(char PLR_MASK, string msg){
   WRITE <char>(write_fd, cstr, msg_length*sizeof(char));
 
   delete [] cstr;
+}
+
+void socket_Message_signal_handler(int){
+
 }
 
 void send_Socket_Map(vector<pair<short,char> > mapChangesVector){
@@ -136,6 +146,24 @@ void send_Socket_Map(vector<pair<short,char> > mapChangesVector){
 
 }
 
+void socket_Map_signal_handler(int){
+  int rows, cols;
+  vector<pair<short,char> > mapChangesVector;
+  rows = mbp->rows;
+  cols = mbp->cols;
+
+  for (int i=0; i < rows*cols; i++){
+      if(initial_map[i] !=  mbp->map[i]){
+        mapChangesVector.push_back(make_pair(i, mbp->map[i] ));
+        initial_map[i] =  mbp->map[i];
+      }
+  }
+  if(mapChangesVector.size() > 0){
+    send_Socket_Map(mapChangesVector);
+  }
+
+}
+
 vector<pair<short,char> >  getMapChangeVector(){
   vector<pair<short,char> > mapChangesVector;
 
@@ -147,7 +175,7 @@ vector<pair<short,char> >  getMapChangeVector(){
 return mapChangesVector;
 }
 
-void process_Socket_Message(char protocol_type){
+void process_Socket_Message(FILE *fp, char protocol_type){
 
   int msg_length = 0;
   char msg_cstring[100];
@@ -155,15 +183,39 @@ void process_Socket_Message(char protocol_type){
   READ <int>(read_fd, &msg_length, sizeof(int));
   READ <char>(read_fd, msg_cstring, msg_length*sizeof(char));
 
-  printf("in server : msglen %d - msg - %s\n",msg_length, msg_cstring);
+  fprintf(fp, "in server : msglen %d - msg - %s\n",msg_length, msg_cstring);
 
 }
 
-void process_Socket_Player(char protocol_type){
+void process_Socket_Player(FILE *fp, char protocol_type){
+  fprintf(fp, "in process_Socket_Player %d\n",protocol_type);
+
+  for(int i = 0; i < 5;i++ ){
+    if(i==0 &&  (protocol_type & G_PLR0) ){
+      fprintf(fp, "player 1 found\n");
+
+    }
+    if ( i==1 && (protocol_type & G_PLR1) ){
+      fprintf(fp, "player 2 found\n");
+
+    }
+    if ( i==2 && (protocol_type & G_PLR2) ){
+      fprintf(fp, "player 3 found\n");
+
+    }
+    if ( i==3 && (protocol_type & G_PLR3) ){
+      fprintf(fp, "player 4 found\n");
+
+    }
+    if ( i==4 && (protocol_type & G_PLR4) ){
+      fprintf(fp, "player 5 found\n");
+
+    }
+  }
 
 }
 
-void process_Socket_Map(char protocol_type){
+void process_Socket_Map(FILE *fp, char protocol_type){
   int Vector_size;
   char changedMapValue;
   short changedMapId;
@@ -171,7 +223,7 @@ void process_Socket_Map(char protocol_type){
   vector<pair<short,char> > mapChangesVector;
 
   READ <int>(read_fd, &Vector_size, sizeof(int));
-  printf("in server : Vector_size %d\n",Vector_size);
+  fprintf(fp, "in server : Vector_size %d\n",Vector_size);
 
   for (int i=0; i<Vector_size; i++){
 
@@ -180,101 +232,60 @@ void process_Socket_Map(char protocol_type){
 
     mapChangesVector.push_back(make_pair(changedMapId,changedMapValue));
   }
-  
-vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols, string ip_address){
-  int sockfd, status; //file descriptor for the socket
-  const char* portno= PORT;
 
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
-  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
-  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
-
-  struct addrinfo *servinfo;
-  //instead of "localhost", it could by any domain name
-  if((status=getaddrinfo("localhost", portno, &hints, &servinfo))==-1)
-  {fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));exit(1);}
-
-  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
-
-  if((status=connect(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
-  {perror("connect");exit(1);}
-
-  //release the information allocated by getaddrinfo()
-  freeaddrinfo(servinfo);
-  fprintf(fp, "Connected to server.\n");
-
-  char initial_map[2100];
-
-  READ<int>(sockfd, &rows, sizeof(int));
-  READ<int>(sockfd, &cols, sizeof(int));
-
-  vector< char >  mbpVector(rows*cols , '*');
-  fprintf(fp, "reading from server done. rows - %d cols - %d\n", rows,cols);
-
-  READ<char>(sockfd, initial_map, (rows*cols + 1)*sizeof(char));
-
-  for (int i=0; i < rows*cols; i++)
-      mbpVector[i] = initial_map[i];
-
-  fprintf(fp, "reading from server done map - %s\n", initial_map);
-  close(sockfd);
-  return mbpVector;
 }
 
-void perform_IPC_with_client(FILE *fp){
-  int sockfd, status, rows, cols, iter = 0; //file descriptor for the socket
-  const char* portno = PORT;
-  struct addrinfo hints;
 
-  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
-  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
-  hints.ai_socktype=SOCK_STREAM; // TCP stream sockets
-  hints.ai_flags=AI_PASSIVE; //file in the IP of the server for me
+void socket_Communication_Handler(FILE *fp){
+  char protocol_type = ' ' ;
 
-  struct addrinfo *servinfo;
-  if((status=getaddrinfo(NULL, portno, &hints, &servinfo))==-1)
-  {fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));exit(1);}
+  fprintf(fp, "Attempting to start Socket communications protocol\n");
+  READ <char>(read_fd, &protocol_type, sizeof(char));
 
-  sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+  if (protocol_type&G_SOCKPLR ){
+    fprintf(fp, "read protocol_type - Socket_Player from client.\n");
+    process_Socket_Player(fp, protocol_type);
 
-  /*avoid "Address already in use" error*/
-  int yes=1;
-  if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))==-1)
-  {perror("setsockopt");exit(1);}
+  }
+  else if (protocol_type&G_SOCKMSG ){
+    fprintf(fp, "read protocol_type - Socket_Message from client.\n");
+    process_Socket_Message(fp, protocol_type);
 
-  //We need to "bind" the socket to the port number so that the kernel
-  //can match an incoming packet on a port to the proper process
-  if((status=bind(sockfd, servinfo->ai_addr, servinfo->ai_addrlen))==-1)
-  {perror("bind");exit(1);}
+  }
+  else if (protocol_type == 0 ){
+    fprintf(fp, "read protocol_type - Socket_Map from client.\n");
+    process_Socket_Map(fp, protocol_type);
 
-  //when done, release dynamically allocated memory
-  freeaddrinfo(servinfo);
+  }
+  else if (protocol_type == 1 ){
+    fprintf(fp, "read protocol_type - break for Blocking read.\n");
+    close(read_fd);
+    exit(0);
 
-  if(listen(sockfd,1)==-1)
-  {perror("listen");exit(1);}
-
-  fprintf(fp, "Blocking, waiting for client to connect\n");
-
-  struct sockaddr_in client_addr;
-  socklen_t clientSize=sizeof(client_addr);
-  int new_sockfd;
-  if((new_sockfd=accept(sockfd, (struct sockaddr*) &client_addr, &clientSize))==-1)
-  {perror("accept");exit(1);}
-
-  fprintf(fp, "Connected to client.\n");
-
-  rows = mbp->rows;
-  cols = mbp->cols;
-
-  WRITE<int>(new_sockfd, &rows, sizeof(int));
-  WRITE<int>(new_sockfd, &cols, sizeof(int));
-  WRITE<char>(new_sockfd, initial_map, (rows*cols + 1)*sizeof(char));
-
-  fprintf(fp, "Writing to client completed.\n");
-  close(new_sockfd);
+  }
 }
 
+void setUpDaemonSignalHandlers(){
+  struct sigaction exit_action;
+  exit_action.sa_handler = socket_Player_signal_handler;
+  exit_action.sa_flags=0;
+  sigemptyset(&exit_action.sa_mask);
+  sigaction(SIGHUP, &exit_action, NULL);
+
+  struct sigaction my_sig_handler;
+  my_sig_handler.sa_handler = socket_Map_signal_handler;
+  sigemptyset(&my_sig_handler.sa_mask);
+  my_sig_handler.sa_flags=0;
+  sigaction(SIGUSR1, &my_sig_handler, NULL);
+
+  struct sigaction action_to_take;
+  //action_to_take.sa_handler=read_message;
+  action_to_take.sa_handler=socket_Message_signal_handler;
+  sigemptyset(&action_to_take.sa_mask);
+  action_to_take.sa_flags=0;
+  sigaction(SIGUSR2, &action_to_take, NULL);
+
+}
 
 void init_Server_Daemon(string ip_address){
   int rows, cols;
@@ -295,8 +306,30 @@ void init_Server_Daemon(string ip_address){
   fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
   fflush(fp);
 
+  write_fd = get_Write_Socket_fd();
+  setUpDaemonSignalHandlers();
 
-  perform_IPC_with_client(fp);
+  int count =0;
+  while(count < 30){
+    sleep(1);
+    count++;
+  }
+
+  char protocol_type = 1;
+  WRITE <char>(write_fd, &protocol_type, sizeof(char));
+  // for testing sig trap only
+  fprintf(fp,"All done in server demon, Killing daemon with pid -%d now.\n", getpid());
+  fclose(fp);
+  exit(0);
+  return;
+  //#####
+
+  //perform_IPC_with_client(fp); // TODO
+  read_fd = get_Read_Socket_fd();
+  fprintf(fp, "Entering infinite loop with blocking read now.\n");
+  while(1){
+  socket_Communication_Handler(fp);
+  sleep(1);}
 
   fprintf(fp,"All done in server demon, Killing daemon with pid -%d now.\n", getpid());
   fclose(fp);
@@ -385,6 +418,8 @@ void sendSignalToActivePlayers(mapboard * mbp, int signal_enum){
       kill(mbp->player_pids[i], signal_enum);
     }
   }
+  if(mbp->daemonID != 1)
+    kill(mbp->daemonID, signal_enum);
 }
 
 void handleGameExit(int){
@@ -625,6 +660,9 @@ int main(int argc, char *argv[])
      //sem_wait(shm_sem);
      gameMap = new Map(reinterpret_cast<const unsigned char*>(mbp->map),rows,cols);
      //sem_post(shm_sem);
+     if(mbp->daemonID != 1)
+       kill(mbp->daemonID, SIGHUP);
+
      sendSignalToActivePlayers(mbp, SIGUSR1);
      initializeMsgQueue(thisPlayer);
      setUpSignalHandlers();
