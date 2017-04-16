@@ -71,7 +71,7 @@ void socket_Communication_Handler(FILE *fp);
 void process_Socket_Message(FILE *fp, char protocol_type);
 void process_Socket_Player(FILE *fp, char protocol_type);
 void process_Socket_Map(FILE *fp, char protocol_type);
-
+void handleGameExit(int);
 
 
 Map * gameMap = NULL;
@@ -118,6 +118,10 @@ void send_Socket_Message(char PLR_MASK, string msg){
   delete [] cstr;
 }
 
+void socket_Message_signal_handler(int){
+
+}
+
 void send_Socket_Map(vector<pair<short,char> > mapChangesVector){
   char protocol_type = 0, changedMapValue;
   short changedMapId;
@@ -134,6 +138,10 @@ void send_Socket_Map(vector<pair<short,char> > mapChangesVector){
     WRITE <short>(write_fd, &changedMapId, sizeof(short));
     WRITE <char>(write_fd, &changedMapValue, sizeof(char));
   }
+
+}
+
+void socket_Map_signal_handler(int){
 
 }
 
@@ -214,7 +222,29 @@ void socket_Communication_Handler(FILE *fp){
   }
 }
 
+void setUpDaemonSignalHandlers(){
+  struct sigaction exit_action;
+  exit_action.sa_handler = handleGameExit;
+  exit_action.sa_flags=0;
+  sigemptyset(&exit_action.sa_mask);
+  sigaction(SIGINT, &exit_action, NULL);
+  sigaction(SIGTERM, &exit_action, NULL);
+  sigaction(SIGHUP, &exit_action, NULL);
 
+  struct sigaction my_sig_handler;
+  my_sig_handler.sa_handler = socket_Map_signal_handler;
+  sigemptyset(&my_sig_handler.sa_mask);
+  my_sig_handler.sa_flags=0;
+  sigaction(SIGUSR1, &my_sig_handler, NULL);
+
+  struct sigaction action_to_take;
+  //action_to_take.sa_handler=read_message;
+  action_to_take.sa_handler=socket_Message_signal_handler;
+  sigemptyset(&action_to_take.sa_mask);
+  action_to_take.sa_flags=0;
+  sigaction(SIGUSR2, &action_to_take, NULL);
+
+}
 
 void init_Server_Daemon(string ip_address){
   int rows, cols;
@@ -330,6 +360,8 @@ void sendSignalToActivePlayers(mapboard * mbp, int signal_enum){
       kill(mbp->player_pids[i], signal_enum);
     }
   }
+  if(mbp->daemonID != 1)
+    kill(mbp->daemonID, signal_enum);
 }
 
 void handleGameExit(int){
