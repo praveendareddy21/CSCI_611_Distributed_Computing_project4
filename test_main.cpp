@@ -101,6 +101,11 @@ void send_Socket_Player(char PLR_MASK){
   return;
 }
 
+void socket_Player_signal_handler(int){
+  char plr_mask = getActivePlayersMask();
+  send_Socket_Player(plr_mask);
+}
+
 void send_Socket_Message(char PLR_MASK, string msg){
   int msg_length = msg.length() + 1;
   char protocol_type = G_SOCKMSG;
@@ -183,6 +188,30 @@ void process_Socket_Message(FILE *fp, char protocol_type){
 }
 
 void process_Socket_Player(FILE *fp, char protocol_type){
+  fprintf(fp, "in process_Socket_Player %d\n",protocol_type);
+
+  for(int i = 0; i < 5;i++ ){
+    if(i==0 &&  (protocol_type & G_PLR0) ){
+      fprintf(fp, "player 1 found\n");
+
+    }
+    if ( i==1 && (protocol_type & G_PLR1) ){
+      fprintf(fp, "player 2 found\n");
+
+    }
+    if ( i==2 && (protocol_type & G_PLR2) ){
+      fprintf(fp, "player 3 found\n");
+
+    }
+    if ( i==3 && (protocol_type & G_PLR3) ){
+      fprintf(fp, "player 4 found\n");
+
+    }
+    if ( i==4 && (protocol_type & G_PLR4) ){
+      fprintf(fp, "player 5 found\n");
+
+    }
+  }
 
 }
 
@@ -238,11 +267,9 @@ void socket_Communication_Handler(FILE *fp){
 
 void setUpDaemonSignalHandlers(){
   struct sigaction exit_action;
-  exit_action.sa_handler = handleGameExit;
+  exit_action.sa_handler = socket_Player_signal_handler;
   exit_action.sa_flags=0;
   sigemptyset(&exit_action.sa_mask);
-  sigaction(SIGINT, &exit_action, NULL);
-  sigaction(SIGTERM, &exit_action, NULL);
   sigaction(SIGHUP, &exit_action, NULL);
 
   struct sigaction my_sig_handler;
@@ -633,6 +660,9 @@ int main(int argc, char *argv[])
      //sem_wait(shm_sem);
      gameMap = new Map(reinterpret_cast<const unsigned char*>(mbp->map),rows,cols);
      //sem_post(shm_sem);
+     if(mbp->daemonID != 1)
+       kill(mbp->daemonID, SIGHUP);
+
      sendSignalToActivePlayers(mbp, SIGUSR1);
      initializeMsgQueue(thisPlayer);
      setUpSignalHandlers();

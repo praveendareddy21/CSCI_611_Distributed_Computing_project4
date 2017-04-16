@@ -98,6 +98,30 @@ void process_Socket_Message(char protocol_type){
 }
 
 void process_Socket_Player(char protocol_type){
+  printf("in process_Socket_Player %d\n",protocol_type);
+
+  for(int i = 0; i < 5;i++ ){
+    if(i==0 &&  (protocol_type & G_PLR0) ){
+      printf("player 1 found\n");
+
+    }
+    if ( i==1 && (protocol_type & G_PLR1) ){
+      printf("player 2 found\n");
+
+    }
+    if ( i==2 && (protocol_type & G_PLR2) ){
+      printf("player 3 found\n");
+
+    }
+    if ( i==3 && (protocol_type & G_PLR3) ){
+      printf("player 4 found\n");
+
+    }
+    if ( i==4 && (protocol_type & G_PLR4) ){
+      printf("player 5 found\n");
+
+    }
+  }
 
 }
 

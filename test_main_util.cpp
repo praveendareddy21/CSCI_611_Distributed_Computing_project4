@@ -391,6 +391,9 @@ vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols, string
       mbpVector[i] = initial_map[i];
 
   fprintf(fp, "reading from server done map - %s\n", initial_map);
+
+  // TODO Socket Player  i char read with OR'ing of active players
+
   close(sockfd);
   return mbpVector;
 }
