@@ -324,7 +324,6 @@ void init_Server_Daemon(string ip_address){
   */
   char protocol_type = 1;
   WRITE <char>(write_fd, &protocol_type, sizeof(char));
-
   close(write_fd);
 
 
@@ -381,22 +380,15 @@ void init_Client_Daemon(string ip_address){
 
   //read_fd = get_Read_Socket_fd(fp);
 
-  char protocol_type;
-  READ <char>(read_fd, &protocol_type, sizeof(char));
-
-  fprintf(fp, "Read char from read_fd as %c.\n", protocol_type);
   fprintf(fp, "Entering infinite loop with blocking read now.\n");
   fflush(fp);
 
-  /*
   while(1){
-    socket_Communication_Handler(fp);
+    socket_Communication_Handler(fp); // takes care of read_fd and exit
     sleep(1);
   }
-  */
 
-
-
+  // control never reaches here
   fprintf(fp,"All done in Client demon, Killing daemon with pid -%d now.\n", getpid());
   fclose(fp);
   exit(0);
