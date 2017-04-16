@@ -92,6 +92,95 @@ void long_sleep(){
   sleep(30);
 }
 
+void send_Socket_Player(char PLR_MASK){
+  char protocol_type = G_SOCKPLR;
+  protocol_type |= PLR_MASK;
+
+  WRITE <char>(write_fd, &protocol_type, sizeof(char));
+  return;
+}
+
+void send_Socket_Message(char PLR_MASK, string msg){
+  int msg_length = msg.length() + 1;
+  char protocol_type = G_SOCKMSG;
+  char *cstr = new char[msg_length];
+
+  strcpy(cstr, msg.c_str());
+  protocol_type |= PLR_MASK;
+
+  printf("in client : msglen %d - msg - %s\n",msg_length, cstr);
+
+  WRITE <char>(write_fd, &protocol_type, sizeof(char));
+  WRITE <int>(write_fd, &msg_length, sizeof(int));
+  WRITE <char>(write_fd, cstr, msg_length*sizeof(char));
+
+  delete [] cstr;
+}
+
+void send_Socket_Map(vector<pair<short,char> > mapChangesVector){
+  char protocol_type = 0, changedMapValue;
+  short changedMapId;
+  int Vector_size = mapChangesVector.size();
+
+  WRITE <char>(write_fd, &protocol_type, sizeof(char));
+
+  WRITE <int>(write_fd, &Vector_size, sizeof(int));
+
+  for(int i = 0; i<Vector_size; i++){
+    changedMapId = mapChangesVector[i].first;
+    changedMapValue = mapChangesVector[i].second;
+
+    WRITE <short>(write_fd, &changedMapId, sizeof(short));
+    WRITE <char>(write_fd, &changedMapValue, sizeof(char));
+  }
+
+}
+
+vector<pair<short,char> >  getMapChangeVector(){
+  vector<pair<short,char> > mapChangesVector;
+
+  mapChangesVector.push_back(make_pair(0,'A'));
+  mapChangesVector.push_back(make_pair(1,'B'));
+  mapChangesVector.push_back(make_pair(2,'C'));
+  mapChangesVector.push_back(make_pair(3,'D'));
+
+return mapChangesVector;
+}
+
+void process_Socket_Message(char protocol_type){
+
+  int msg_length = 0;
+  char msg_cstring[100];
+
+  READ <int>(read_fd, &msg_length, sizeof(int));
+  READ <char>(read_fd, msg_cstring, msg_length*sizeof(char));
+
+  printf("in server : msglen %d - msg - %s\n",msg_length, msg_cstring);
+
+}
+
+void process_Socket_Player(char protocol_type){
+
+}
+
+void process_Socket_Map(char protocol_type){
+  int Vector_size;
+  char changedMapValue;
+  short changedMapId;
+
+  vector<pair<short,char> > mapChangesVector;
+
+  READ <int>(read_fd, &Vector_size, sizeof(int));
+  printf("in server : Vector_size %d\n",Vector_size);
+
+  for (int i=0; i<Vector_size; i++){
+
+    READ <short>(read_fd, &changedMapId, sizeof(short));
+    READ <char>(read_fd, &changedMapValue, sizeof(char));
+
+    mapChangesVector.push_back(make_pair(changedMapId,changedMapValue));
+  }
+  
 vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols, string ip_address){
   int sockfd, status; //file descriptor for the socket
   const char* portno= PORT;
