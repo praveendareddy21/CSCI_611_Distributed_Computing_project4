@@ -37,9 +37,11 @@ using namespace std;
 #define  SHM_NAME "/PD_SharedMemory"
 #define MSG_QUEUE_PREFIX "/PD_MSG_QUEUE_P"
 #define IS_CLIENT 0
+#define PORT "42425"  //change this # between 2000-65k before using
+#define PORT1 "42426"  //change this # between 2000-65k before using
 #endif
 
-#define PORT "42425"  //change this # between 2000-65k before using
+
 #define REAL_GOLD_MESSAGE "You found Real Gold!!"
 #define FAKE_GOLD_MESSAGE "You found Fool's Gold!!"
 #define EMPTY_MESSAGE_PLAYER_MOVED "m"
@@ -310,7 +312,7 @@ void init_Server_Daemon(string ip_address){
 
   perform_IPC_with_client(fp);
 
-  write_fd = get_Write_Socket_fd();
+  //write_fd = get_Write_Socket_fd(fp);
 
   //setUpDaemonSignalHandlers();
   /*
@@ -320,9 +322,13 @@ void init_Server_Daemon(string ip_address){
     count++;
   }
   */
-
   char protocol_type = 1;
   WRITE <char>(write_fd, &protocol_type, sizeof(char));
+
+  close(write_fd);
+
+
+
 
 
   fprintf(fp,"All done in server demon, Killing daemon with pid -%d now.\n", getpid());
@@ -370,14 +376,25 @@ void init_Client_Daemon(string ip_address){
     fprintf(fp,"Shm open failed in client daemon \n");
 
   fprintf(fp,"initilized Shm, posting semaphore \n");
+  fflush(fp);
 
 
-  read_fd = get_Read_Socket_fd();
+  //read_fd = get_Read_Socket_fd(fp);
+
+  char protocol_type;
+  READ <char>(read_fd, &protocol_type, sizeof(char));
+
+  fprintf(fp, "Read char from read_fd as %c.\n", protocol_type);
   fprintf(fp, "Entering infinite loop with blocking read now.\n");
+  fflush(fp);
+
+  /*
   while(1){
     socket_Communication_Handler(fp);
     sleep(1);
   }
+  */
+
 
 
   fprintf(fp,"All done in Client demon, Killing daemon with pid -%d now.\n", getpid());

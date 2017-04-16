@@ -299,7 +299,8 @@ vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols, string
       mbpVector[i] = initial_map[i];
 
   fprintf(fp, "reading from server done map - %s\n", initial_map);
-  close(sockfd);
+  read_fd = sockfd;
+  //close(sockfd);
   return mbpVector;
 }
 
@@ -353,16 +354,18 @@ void perform_IPC_with_client(FILE *fp){
   WRITE<char>(new_sockfd, initial_map, (rows*cols + 1)*sizeof(char));
 
   fprintf(fp, "Writing to client completed.\n");
-  close(new_sockfd);
+  write_fd = new_sockfd;
+  //close(new_sockfd);
 }
 
-int get_Read_Socket_fd(){
+int get_Read_Socket_fd(FILE * fp){
   int sockfd; //file descriptor for the socket
  int status; //for error checking
 
-
+ fprintf(fp, "Attempting to get Read Socket fd for Socket protocol IPC.\n");
+ fflush(fp);
  //change this # between 2000-65k before using
- const char* portno = PORT;
+ const char* portno = PORT1;
  struct addrinfo hints;
  memset(&hints, 0, sizeof(hints)); //zero out everything in structure
  hints.ai_family = AF_UNSPEC; //don't care. Either IPv4 or IPv6
@@ -401,7 +404,8 @@ int get_Read_Socket_fd(){
    exit(1);
  }
 
- printf("Blocking, waiting for client to connect\n");
+ fprintf(fp, "Blocking, waiting for client to connect\n");
+ fflush(fp);
 
  struct sockaddr_in client_addr;
  socklen_t clientSize=sizeof(client_addr);
@@ -411,16 +415,20 @@ int get_Read_Socket_fd(){
    perror("accept");
    exit(1);
  }
- printf("Connected to client.\n");
+ fprintf(fp, "Connected to client.\n");
+ fprintf(fp, "returning Read Socket fd for Socket protocol IPC as %d.\n",new_sockfd);
  return new_sockfd;
 }
 
-int get_Write_Socket_fd(){
+
+int get_Write_Socket_fd(FILE * fp){
   int sockfd; //file descriptor for the socket
   int status; //for error checking
 
+  fprintf(fp, "Attempting to get Write Socket fd for Socket protocol IPC.\n");
+  fflush(fp);
   //change this # between 2000-65k before using
-  const char* portno = PORT;
+  const char* portno = PORT1;
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints)); //zero out everything in structure
@@ -444,6 +452,7 @@ int get_Write_Socket_fd(){
   //release the information allocated by getaddrinfo()
   freeaddrinfo(servinfo);
 
-  printf("Connected to server.\n");
+  fprintf(fp, "Connected to server.\n");
+  fprintf(fp, "returning Write Socket fd for Socket protocol IPC as %d.\n", sockfd);
   return sockfd;
 }
