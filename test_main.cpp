@@ -39,7 +39,7 @@ using namespace std;
 #define IS_CLIENT 0
 #endif
 
-#define PORT "42424"  //change this # between 2000-65k before using
+#define PORT "42425"  //change this # between 2000-65k before using
 #define REAL_GOLD_MESSAGE "You found Real Gold!!"
 #define FAKE_GOLD_MESSAGE "You found Fool's Gold!!"
 #define EMPTY_MESSAGE_PLAYER_MOVED "m"
@@ -74,6 +74,7 @@ void process_Socket_Map(FILE *fp, char protocol_type);
 void handleGameExit(int);
 
 
+
 Map * gameMap = NULL;
 mqd_t readqueue_fd; //message queue file descriptor
 string mq_name;
@@ -84,7 +85,6 @@ char initial_map[2100];
 int write_fd = -1;
 int read_fd = -1;
 
-
 //####################################################### test map util #######################################
 
 #include"test_main_util.cpp"
@@ -93,6 +93,7 @@ int read_fd = -1;
 void long_sleep(){
   sleep(30);
 }
+
 void send_Socket_Player(char PLR_MASK){
   char protocol_type = G_SOCKPLR;
   protocol_type |= PLR_MASK;
@@ -306,30 +307,8 @@ void init_Server_Daemon(string ip_address){
   fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
   fflush(fp);
 
-  write_fd = get_Write_Socket_fd();
-  setUpDaemonSignalHandlers();
 
-  int count =0;
-  while(count < 30){
-    sleep(1);
-    count++;
-  }
-
-  char protocol_type = 1;
-  WRITE <char>(write_fd, &protocol_type, sizeof(char));
-  // for testing sig trap only
-  fprintf(fp,"All done in server demon, Killing daemon with pid -%d now.\n", getpid());
-  fclose(fp);
-  exit(0);
-  return;
-  //#####
-
-  //perform_IPC_with_client(fp); // TODO
-  read_fd = get_Read_Socket_fd();
-  fprintf(fp, "Entering infinite loop with blocking read now.\n");
-  while(1){
-  socket_Communication_Handler(fp);
-  sleep(1);}
+  perform_IPC_with_client(fp);
 
   fprintf(fp,"All done in server demon, Killing daemon with pid -%d now.\n", getpid());
   fclose(fp);
@@ -418,8 +397,6 @@ void sendSignalToActivePlayers(mapboard * mbp, int signal_enum){
       kill(mbp->player_pids[i], signal_enum);
     }
   }
-  if(mbp->daemonID != 1)
-    kill(mbp->daemonID, signal_enum);
 }
 
 void handleGameExit(int){
@@ -660,9 +637,6 @@ int main(int argc, char *argv[])
      //sem_wait(shm_sem);
      gameMap = new Map(reinterpret_cast<const unsigned char*>(mbp->map),rows,cols);
      //sem_post(shm_sem);
-     if(mbp->daemonID != 1)
-       kill(mbp->daemonID, SIGHUP);
-
      sendSignalToActivePlayers(mbp, SIGUSR1);
      initializeMsgQueue(thisPlayer);
      setUpSignalHandlers();
