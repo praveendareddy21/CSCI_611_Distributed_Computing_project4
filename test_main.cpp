@@ -142,6 +142,20 @@ void send_Socket_Map(vector<pair<short,char> > mapChangesVector){
 }
 
 void socket_Map_signal_handler(int){
+  int rows, cols;
+  vector<pair<short,char> > mapChangesVector;
+  rows = mbp->rows;
+  cols = mbp->cols;
+
+  for (int i=0; i < rows*cols; i++){
+      if(initial_map[i] !=  mbp->map[i]){
+        mapChangesVector.push_back(make_pair(i, mbp->map[i] ));
+        initial_map[i] =  mbp->map[i];
+      }
+  }
+  if(mapChangesVector.size() > 0){
+    send_Socket_Map(mapChangesVector);
+  }
 
 }
 
@@ -265,6 +279,23 @@ void init_Server_Daemon(string ip_address){
   fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
   fflush(fp);
 
+  write_fd = get_Write_Socket_fd();
+  setUpDaemonSignalHandlers();
+
+  int count =0;
+  while(count < 30){
+    sleep(1);
+    count++;
+  }
+
+  char protocol_type = 1;
+  WRITE <char>(write_fd, &protocol_type, sizeof(char));
+  // for testing sig trap only
+  fprintf(fp,"All done in server demon, Killing daemon with pid -%d now.\n", getpid());
+  fclose(fp);
+  exit(0);
+  return;
+  //#####
 
   //perform_IPC_with_client(fp); // TODO
   read_fd = get_Read_Socket_fd();
