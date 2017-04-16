@@ -39,7 +39,7 @@ using namespace std;
 #define IS_CLIENT 0
 #endif
 
-#define PORT "42425"  //change this # between 2000-65k before using
+#define PORT "42424"  //change this # between 2000-65k before using
 #define REAL_GOLD_MESSAGE "You found Real Gold!!"
 #define FAKE_GOLD_MESSAGE "You found Fool's Gold!!"
 #define EMPTY_MESSAGE_PLAYER_MOVED "m"
@@ -67,10 +67,10 @@ void send_Socket_Message(char PLR_MASK, string msg);
 void send_Socket_Player(char PLR_MASK);
 void send_Socket_Map(vector< pair<short, char> > mapChangesVector);
 
-void socket_Communication_Handler();
-void process_Socket_Message(char protocol_type);
-void process_Socket_Player(char protocol_type);
-void process_Socket_Map(char protocol_type);
+void socket_Communication_Handler(FILE *fp);
+void process_Socket_Message(FILE *fp, char protocol_type);
+void process_Socket_Player(FILE *fp, char protocol_type);
+void process_Socket_Map(FILE *fp, char protocol_type);
 
 
 
@@ -148,7 +148,7 @@ vector<pair<short,char> >  getMapChangeVector(){
 return mapChangesVector;
 }
 
-void process_Socket_Message(char protocol_type){
+void process_Socket_Message(FILE *fp, char protocol_type){
 
   int msg_length = 0;
   char msg_cstring[100];
@@ -156,15 +156,15 @@ void process_Socket_Message(char protocol_type){
   READ <int>(read_fd, &msg_length, sizeof(int));
   READ <char>(read_fd, msg_cstring, msg_length*sizeof(char));
 
-  printf("in server : msglen %d - msg - %s\n",msg_length, msg_cstring);
+  fprintf(fp, "in server : msglen %d - msg - %s\n",msg_length, msg_cstring);
 
 }
 
-void process_Socket_Player(char protocol_type){
+void process_Socket_Player(FILE *fp, char protocol_type){
 
 }
 
-void process_Socket_Map(char protocol_type){
+void process_Socket_Map(FILE *fp, char protocol_type){
   int Vector_size;
   char changedMapValue;
   short changedMapId;
@@ -172,7 +172,7 @@ void process_Socket_Map(char protocol_type){
   vector<pair<short,char> > mapChangesVector;
 
   READ <int>(read_fd, &Vector_size, sizeof(int));
-  printf("in server : Vector_size %d\n",Vector_size);
+  fprintf(fp, "in server : Vector_size %d\n",Vector_size);
 
   for (int i=0; i<Vector_size; i++){
 
@@ -181,6 +181,39 @@ void process_Socket_Map(char protocol_type){
 
     mapChangesVector.push_back(make_pair(changedMapId,changedMapValue));
   }
+
+}
+
+
+void socket_Communication_Handler(FILE *fp){
+  char protocol_type = ' ' ;
+
+  fprintf(fp, "Attempting to start Socket communications protocol\n");
+  READ <char>(read_fd, &protocol_type, sizeof(char));
+
+  if (protocol_type&G_SOCKPLR ){
+    fprintf(fp, "read protocol_type - Socket_Player from client.\n");
+    process_Socket_Player(fp, protocol_type);
+
+  }
+  else if (protocol_type&G_SOCKMSG ){
+    fprintf(fp, "read protocol_type - Socket_Message from client.\n");
+    process_Socket_Message(fp, protocol_type);
+
+  }
+  else if (protocol_type == 0 ){
+    fprintf(fp, "read protocol_type - Socket_Map from client.\n");
+    process_Socket_Map(fp, protocol_type);
+
+  }
+  else if (protocol_type == 1 ){
+    fprintf(fp, "read protocol_type - break for Blocking read.\n");
+    close(read_fd);
+    exit(0);
+
+  }
+}
+
 
 vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols, string ip_address){
   int sockfd, status; //file descriptor for the socket
@@ -271,8 +304,8 @@ void perform_IPC_with_client(FILE *fp){
   WRITE<int>(new_sockfd, &rows, sizeof(int));
   WRITE<int>(new_sockfd, &cols, sizeof(int));
   WRITE<char>(new_sockfd, initial_map, (rows*cols + 1)*sizeof(char));
+  fprintf(fp, "Writing to client for client Initialization completed.\n");
 
-  fprintf(fp, "Writing to client completed.\n");
   close(new_sockfd);
 }
 
@@ -297,7 +330,12 @@ void init_Server_Daemon(string ip_address){
   fflush(fp);
 
 
-  perform_IPC_with_client(fp);
+  //perform_IPC_with_client(fp); // TODO
+  read_fd = get_Read_Socket_fd();
+  fprintf(fp, "Entering infinite loop with blocking read now.\n");
+  while(1){
+  socket_Communication_Handler(fp);
+  sleep(1);}
 
   fprintf(fp,"All done in server demon, Killing daemon with pid -%d now.\n", getpid());
   fclose(fp);
