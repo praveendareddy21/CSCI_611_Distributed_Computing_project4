@@ -288,6 +288,7 @@ void socket_Communication_Handler(FILE *fp){
   }
   else if (protocol_type == 1 ){
     fprintf(fp, "read protocol_type - break for Blocking read.\n");
+    fprintf(fp,"All done in demon, Killing daemon with pid -%d now.\n", getpid());
     close(read_fd);
     exit(0);
 
@@ -320,17 +321,23 @@ void init_Server_Daemon(string ip_address){
   int rows, cols;
   FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_server.log", "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
-  fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
+  fflush(fp);
 
   sem_wait(shm_sem);
   mbp = readSharedMemory();
   rows = mbp->rows;
   cols = mbp->cols;
-  mbp->daemonID = getpid();
+
 
   for (int i=0; i < rows*cols; i++)
       initial_map[i] =  mbp->map[i];
   initial_map[rows*cols] = '\0';
+
+  fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
+  fflush(fp);
+
+  mbp->daemonID = getpid();
+  sem_post(shm_sem);
 
   perform_IPC_with_client(fp);
   char active_plr_mask = getActivePlayersMask();
@@ -338,8 +345,6 @@ void init_Server_Daemon(string ip_address){
 
 
   read_fd = get_Read_Socket_fd(fp);
-
-  sem_post(shm_sem);
 
   setUpDaemonSignalHandlers();
   fflush(fp);
