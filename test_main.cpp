@@ -483,8 +483,8 @@ void handleGameExit(int){
   sem_post(shm_sem);
   sendSignalToActivePlayers(mbp, SIGUSR1);
   bool isBoardEmpty = isGameBoardEmpty(mbp); //TODO
-  mq_close(readqueue_fd);
-  mq_unlink(mq_name.c_str());
+  //mq_close(readqueue_fd);
+  //mq_unlink(mq_name.c_str());
 
 
   if(isBoardEmpty)
@@ -720,7 +720,7 @@ int main(int argc, char *argv[])
      }
 
      sendSignalToActivePlayers(mbp, SIGUSR1);
-     initializeMsgQueue(thisPlayer);
+     //initializeMsgQueue(thisPlayer);
      setUpSignalHandlers();
 
 
@@ -761,11 +761,11 @@ int main(int argc, char *argv[])
        else if(keyInput == 109){ // key m for message
          int toPlayerInt = getPlayerFromMask((*gameMap).getPlayer(getActivePlayersMask()) );
          string msg = (*gameMap).getMessage();
-         sendMsgToPlayer(thisPlayer, toPlayerInt, msg, true);
+         //sendMsgToPlayer(thisPlayer, toPlayerInt, msg, true);
        }
        else if(keyInput == 98){ // key b for broadcast
          string msg = (*gameMap).getMessage();
-         sendMsgBroadcastToPlayers(thisPlayer, msg);
+         //sendMsgBroadcastToPlayers(thisPlayer, msg);
        }
 
 
