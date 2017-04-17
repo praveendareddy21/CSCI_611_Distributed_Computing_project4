@@ -74,7 +74,7 @@ void process_Socket_Message(FILE *fp, char protocol_type);
 void process_Socket_Player(FILE *fp, char protocol_type);
 void process_Socket_Map(FILE *fp, char protocol_type);
 void handleGameExit(int);
-
+void sendSignalToActivePlayers(mapboard * mbp, int signal_enum);
 
 
 Map * gameMap = NULL;
@@ -214,7 +214,14 @@ void process_Socket_Player(FILE *fp, char protocol_type){
       fprintf(fp, "player 5 found\n");
 
     }
-  }
+  }// end of for loop
+
+  //sem_wait(shm_sem);
+  //for(int i = 0; i<Vector_size; i++){
+  //  mbp->map[mapChangesVector[i].first] = mapChangesVector[i].second;
+  //}
+  //sem_post(shm_sem);
+  sendSignalToActivePlayers(mbp, SIGUSR1);
 
 }
 
@@ -236,6 +243,7 @@ void process_Socket_Map(FILE *fp, char protocol_type){
     mapChangesVector.push_back(make_pair(changedMapId,changedMapValue));
   }
 
+  /*
   fprintf(fp, "in server : Vector_size %d\n",mapChangesVector.size());
   fprintf(fp, "in server : printing mapChangesVector\n");
 
@@ -244,6 +252,14 @@ void process_Socket_Map(FILE *fp, char protocol_type){
     changedMapValue = mapChangesVector[i].second;
     fprintf(fp, "Id : %d --- Value : %c\n", changedMapId, changedMapValue);
   }
+  */
+
+  sem_wait(shm_sem);
+  for(int i = 0; i<Vector_size; i++){
+    mbp->map[mapChangesVector[i].first] = mapChangesVector[i].second;
+  }
+  sem_post(shm_sem);
+  sendSignalToActivePlayers(mbp, SIGUSR1);
 
 }
 
@@ -690,6 +706,11 @@ int main(int argc, char *argv[])
      //sem_wait(shm_sem);
      gameMap = new Map(reinterpret_cast<const unsigned char*>(mbp->map),rows,cols);
      //sem_post(shm_sem);
+
+     if(mbp->daemonID != -1){
+       //kill(mbp->daemonID, SIGHUP);
+     }
+
      sendSignalToActivePlayers(mbp, SIGUSR1);
      initializeMsgQueue(thisPlayer);
      setUpSignalHandlers();
@@ -721,6 +742,7 @@ int main(int argc, char *argv[])
            if(mbp->daemonID != -1){
              kill(mbp->daemonID, SIGUSR1);
            }
+
          }
 
 
