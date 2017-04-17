@@ -317,6 +317,10 @@ void setUpDaemonSignalHandlers(){
 
 void init_Server_Daemon(string ip_address){
   int rows, cols;
+  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_server.log", "w+");
+  fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
+  fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
+
   sem_wait(shm_sem);
   mbp = readSharedMemory();
   rows = mbp->rows;
@@ -327,19 +331,16 @@ void init_Server_Daemon(string ip_address){
       initial_map[i] =  mbp->map[i];
   initial_map[rows*cols] = '\0';
 
+  perform_IPC_with_client(fp);
+  read_fd = get_Read_Socket_fd(fp);
+
   sem_post(shm_sem);
 
   setUpDaemonSignalHandlers();
-
-  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_server.log", "w+");
-  fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
-  fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
   fflush(fp);
 
 
-  perform_IPC_with_client(fp);
 
-  read_fd = get_Read_Socket_fd(fp);
 
   char protocol_type;
   READ <char>(read_fd, &protocol_type, sizeof(char));
@@ -350,7 +351,7 @@ void init_Server_Daemon(string ip_address){
 
 
   int count =0;
-  while(count < 30){
+  while(count < 10){ // 30 for more time
     sleep(1);
     count++;
   }
@@ -383,14 +384,14 @@ void init_Client_Daemon(string ip_address){
 
   shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
 
-  fprintf(fp,"checkpoint 0.\n");
-  fflush(fp);
+  //fprintf(fp,"checkpoint 0.\n");
+  //fflush(fp);
 
   sem_wait(shm_sem);
   mbp = initSharedMemory(rows, cols);
 
-  fprintf(fp,"checkpoint 2.\n");
-  fflush(fp);
+  //fprintf(fp,"checkpoint 2.\n");
+  //fflush(fp);
 
   mbp->rows = rows;
   mbp->cols = cols;
@@ -400,8 +401,11 @@ void init_Client_Daemon(string ip_address){
   for (int i=0; i < rows*cols; i++)
       mbp->map[i] = mbpVector[i];
 
+  write_fd = get_Write_Socket_fd(fp);
+
   sem_post(shm_sem);
 
+  /*
   if ( ( fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) != -1)
     fprintf(fp,"Shm open successful in client daemon \n");
   else
@@ -409,9 +413,10 @@ void init_Client_Daemon(string ip_address){
 
   fprintf(fp,"initilized Shm, posting semaphore \n");
   fflush(fp);
+  */
 
 
-  write_fd = get_Write_Socket_fd(fp);
+
   char protocol_type = 7;
   WRITE <char>(write_fd, &protocol_type, sizeof(char));
   fprintf(fp, "write using get Write socket - %d\n", protocol_type);
@@ -638,15 +643,18 @@ int main(int argc, char *argv[])
       // wait loop until shm is inited by client daemon
 
       while(1){ // loop until mbp is updated
-        sleep(2);
-        if ( (fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)
-          cout<<"shm not set"<<endl;
-        else{
-          cout<<"shm set"<<endl;
-          break;
-        }
-        sleep(1);
+          sleep(1);
+          if ( (fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)
+            cout<<"shm not set"<<endl;
+          else{
+            cout<<"shm set"<<endl;
+            break;
+          }
       }
+      //sem_wait(shm_sem);
+
+      //sem_post(shm_sem);
+
     }
 
   }else{
