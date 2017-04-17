@@ -332,6 +332,10 @@ void init_Server_Daemon(string ip_address){
   initial_map[rows*cols] = '\0';
 
   perform_IPC_with_client(fp);
+  char active_plr_mask = getActivePlayersMask();
+  WRITE <char>(write_fd, &active_plr_mask, sizeof(char));
+
+
   read_fd = get_Read_Socket_fd(fp);
 
   sem_post(shm_sem);
@@ -380,7 +384,13 @@ void init_Client_Daemon(string ip_address){
 
 
   vector< char >  mbpVector = perform_IPC_with_server(fp, rows, cols, ip_address);
-  fprintf(fp, "Reading from server IPC done. rows - %d cols - %d\n", rows,cols);
+  fprintf(fp, "Reading from server IPC for mbpVector done. rows - %d cols - %d\n", rows,cols);
+
+  char active_plr_mask;
+  READ <char>(read_fd, &active_plr_mask, sizeof(char));
+  fprintf(fp, "Reading from server IPC for Active players done - %d\n",active_plr_mask );
+  fprintf(fp, "Completed Client Daemon Initialize IPC. \n");
+  fflush(fp);
 
   shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
 
@@ -615,10 +625,10 @@ void setUpSignalHandlers(){
 
   struct sigaction action_to_take;
   //action_to_take.sa_handler=read_message;
-  action_to_take.sa_handler=receiveMessage;
-  sigemptyset(&action_to_take.sa_mask);
-  action_to_take.sa_flags=0;
-  sigaction(SIGUSR2, &action_to_take, NULL);
+  //action_to_take.sa_handler=receiveMessage;
+  //sigemptyset(&action_to_take.sa_mask);
+  //action_to_take.sa_flags=0;
+  //sigaction(SIGUSR2, &action_to_take, NULL);
 
 }
 
