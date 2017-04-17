@@ -323,7 +323,13 @@ void init_Server_Daemon(string ip_address){
 
   perform_IPC_with_client(fp);
 
-  //write_fd = get_Write_Socket_fd(fp);
+  read_fd = get_Read_Socket_fd(fp);
+
+  char protocol_type;
+  READ <char>(read_fd, &protocol_type, sizeof(char));
+
+  fprintf(fp, "read using get Read socket - %d\n", protocol_type);
+  fflush(fp);
 
 
 
@@ -333,8 +339,8 @@ void init_Server_Daemon(string ip_address){
     count++;
   }
 
-  char protocol_type = 1;
-  WRITE <char>(write_fd, &protocol_type, sizeof(char));
+  char protocol_type1 = 1;
+  WRITE <char>(write_fd, &protocol_type1, sizeof(char));
   close(write_fd);
 
 
@@ -389,7 +395,12 @@ void init_Client_Daemon(string ip_address){
   fflush(fp);
 
 
-  //read_fd = get_Read_Socket_fd(fp);
+  write_fd = get_Write_Socket_fd(fp);
+  char protocol_type = 7;
+  WRITE <char>(write_fd, &protocol_type, sizeof(char));
+  fprintf(fp, "write using get Write socket - %d\n", protocol_type);
+  fflush(fp);
+
 
   fprintf(fp, "Entering infinite loop with blocking read now.\n");
   fflush(fp);
