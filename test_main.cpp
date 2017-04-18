@@ -76,7 +76,7 @@ void process_Socket_Map(FILE *fp, char protocol_type);
 void handleGameExit(int);
 void sendSignalToActivePlayers(mapboard * mbp, int signal_enum);
 void sendSignalToActivePlayersOnNode(mapboard * mbp, int signal_enum);
-
+void sendSignalToDaemon(mapboard * mbp, int signal_enum);
 
 Map * gameMap = NULL;
 mqd_t readqueue_fd; //message queue file descriptor
@@ -196,63 +196,63 @@ void process_Socket_Player(FILE *fp, char protocol_type){
 
   sem_wait(shm_sem);
   for(int i = 0; i < 5;i++ ){
-    if(i==0 &&  (protocol_type & G_PLR0) && mbp->player_pids[i] == -1){ // p1 joined
-      fprintf(fp, "player 1 found\n");
-      mbp->player_pids[i] = getpid();
+      if(i==0 &&  (protocol_type & G_PLR0) && mbp->player_pids[i] == -1){ // p1 joined
+        fprintf(fp, "player 1 found\n");
+        mbp->player_pids[i] = getpid();
 
-    }
-    if(i==0 &&  (protocol_type & G_PLR0 == 0) && mbp->player_pids[i] != -1){ // p1 left
-      fprintf(fp, "player 1 Left\n");
-      mbp->player_pids[i] = -1;
+      }
+      if(i==0 &&  !(protocol_type & G_PLR0) && mbp->player_pids[i] != -1){ // p1 left
+        fprintf(fp, "player 1 Left\n");
+        mbp->player_pids[i] = -1;
 
-    }
+      }
 
 
-    if ( i==1 && (protocol_type & G_PLR1) && mbp->player_pids[i] == -1){ // p2 joined
-      fprintf(fp, "player 2 found\n");
-      mbp->player_pids[i] = getpid();
+      if ( i==1 && (protocol_type & G_PLR1) && mbp->player_pids[i] == -1){ // p2 joined
+        fprintf(fp, "player 2 found\n");
+        mbp->player_pids[i] = getpid();
 
-    }
-    if(i==1 &&  (protocol_type & G_PLR1 == 0) && mbp->player_pids[i] != -1){ // p2 left
-      fprintf(fp, "player 2 Left\n");
-      mbp->player_pids[i] = -1;
+      }
+      if(i==1 &&  !(protocol_type & G_PLR1) && mbp->player_pids[i] != -1){ // p2 left
+        fprintf(fp, "player 2 Left\n");
+        mbp->player_pids[i] = -1;
 
-    }
+      }
 
-    if ( i==2 && (protocol_type & G_PLR2) && mbp->player_pids[i] == -1){ // p3 joined
-      fprintf(fp, "player 3 found\n");
-      mbp->player_pids[i] = getpid();
+      if ( i==2 && (protocol_type & G_PLR2) && mbp->player_pids[i] == -1){ // p3 joined
+        fprintf(fp, "player 3 found\n");
+        mbp->player_pids[i] = getpid();
 
-    }
-    if(i==2 &&  (protocol_type & G_PLR2 == 0) && mbp->player_pids[i] != -1){ // p3 left
-      fprintf(fp, "player 3 Left\n");
-      mbp->player_pids[i] = -1;
+      }
+      if(i==2 &&  !(protocol_type & G_PLR2) && mbp->player_pids[i] != -1){ // p3 left
+        fprintf(fp, "player 3 Left\n");
+        mbp->player_pids[i] = -1;
 
-    }
+      }
 
-    if ( i==3 && (protocol_type & G_PLR3) && mbp->player_pids[i] == -1){ // p4 joined
-      fprintf(fp, "player 4 found\n");
-      mbp->player_pids[i] = getpid();
+      if ( i==3 && (protocol_type & G_PLR3) && mbp->player_pids[i] == -1){ // p4 joined
+        fprintf(fp, "player 4 found\n");
+        mbp->player_pids[i] = getpid();
 
-    }
-    if(i==3 &&  (protocol_type & G_PLR3 == 0) && mbp->player_pids[i] != -1){ // p4 left
-      fprintf(fp, "player 4 Left\n");
-      mbp->player_pids[i] = -1;
+      }
+      if(i==3 &&  !(protocol_type & G_PLR3) && mbp->player_pids[i] != -1){ // p4 left
+        fprintf(fp, "player 4 Left\n");
+        mbp->player_pids[i] = -1;
 
-    }
+      }
 
-    if ( i==4 && (protocol_type & G_PLR4) && mbp->player_pids[i] == -1){
-      fprintf(fp, "player 5 found\n");
-      mbp->player_pids[i] = getpid();
+      if ( i==4 && (protocol_type & G_PLR4) && mbp->player_pids[i] == -1){
+        fprintf(fp, "player 5 found\n");
+        mbp->player_pids[i] = getpid();
 
-    }
-    if(i==4 &&  (protocol_type & G_PLR4 == 0) && mbp->player_pids[i] != -1){ // p5 left
-      fprintf(fp, "player 5 Left\n");
-      mbp->player_pids[i] = -1;
+      }
+      if(i==4 &&  !(protocol_type & G_PLR4) && mbp->player_pids[i] != -1){ // p5 left
+        fprintf(fp, "player 5 Left\n");
+        mbp->player_pids[i] = -1;
 
-    }
+      }
 
-  }// end of for loop
+    }// end of for loop
   sem_post(shm_sem);
 
   //sendSignalToActivePlayersOnNode(mbp, SIGUSR1);
@@ -323,7 +323,7 @@ void socket_Communication_Handler(FILE *fp){
     process_Socket_Map(fp, protocol_type);
 
   }
-  else if (protocol_type == 1 ){// TODO
+  else if (protocol_type == 1 ){// TODO DELETE
     if(IS_CLIENT){
       fprintf(fp, "read protocol_type - break for Blocking read.\n");
       char protocol_type1 = 1;
@@ -346,7 +346,7 @@ void socket_Communication_Handler(FILE *fp){
   }
 }
 
-void socket_break_Read_signal_handler(int){
+void socket_break_Read_signal_handler(int){ //TODO DELETE
   char protocol_type1 = 1;
   WRITE <char>(write_fd, &protocol_type1, sizeof(char));
 }
@@ -589,6 +589,9 @@ void handleGameExit(int){
   mbp->player_pids[getPlayerFromMask(thisPlayer)] = -1;
   sem_post(shm_sem);
   sendSignalToActivePlayers(mbp, SIGUSR1);
+  sendSignalToDaemon(mbp, SIGHUP);
+  sendSignalToDaemon(mbp, SIGUSR1);
+
   bool isBoardEmpty = isGameBoardEmpty(mbp); //TODO
   //mq_close(readqueue_fd);
   //mq_unlink(mq_name.c_str());
