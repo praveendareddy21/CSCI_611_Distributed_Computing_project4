@@ -297,7 +297,20 @@ void socket_Communication_Handler(FILE *fp){
   }
 }
 
+void socket_break_Read_signal_handler(int){
+  close(write_fd);
+  close(read_fd);
+  exit(0);
+}
+
 void setUpDaemonSignalHandlers(){
+
+  struct sigaction break_read;
+  break_read.sa_handler = socket_break_Read_signal_handler;
+  break_read.sa_flags=0;
+  sigemptyset(&break_read.sa_mask);
+  sigaction(SIGINT, &break_read, NULL);
+
   struct sigaction exit_action;
   exit_action.sa_handler = socket_Player_signal_handler;
   exit_action.sa_flags=0;
@@ -360,24 +373,14 @@ void init_Server_Daemon(string ip_address){
   fprintf(fp, "read using get Read socket - %d\n", protocol_type);
   fflush(fp);
 
-  //while(1){
-    //socket_Communication_Handler(fp); // takes care of read_fd and exit
-    //sleep(1);
-  //}
-  for(int i=0;i<2;i++)
-    socket_Communication_Handler(fp);
 
+  fprintf(fp, "Entering infinite loop with blocking read now.\n");
+  fflush(fp);
 
-  int count =0;
-  while(count < 10){ // 30 for more time
+  while(1){
+    socket_Communication_Handler(fp); // takes care of read_fd and exit
     sleep(1);
-    count++;
   }
-
-  char protocol_type1 = 1;
-  WRITE <char>(write_fd, &protocol_type1, sizeof(char));
-  close(write_fd);
-
 
 
 
@@ -864,6 +867,7 @@ int main(int argc, char *argv[])
        }
        else if(keyInput == 98){ // key b for broadcast
          string msg = (*gameMap).getMessage();
+         sendSignalToDaemon(mbp, SIGINT);
          //sendMsgBroadcastToPlayers(thisPlayer, msg);
        }
 
