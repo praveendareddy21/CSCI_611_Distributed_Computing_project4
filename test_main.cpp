@@ -323,19 +323,32 @@ void socket_Communication_Handler(FILE *fp){
     process_Socket_Map(fp, protocol_type);
 
   }
-  else if (protocol_type == 1 ){
-    fprintf(fp, "read protocol_type - break for Blocking read.\n");
-    fprintf(fp,"All done in demon, Killing daemon with pid -%d now.\n", getpid());
-    close(read_fd);
-    exit(0);
+  else if (protocol_type == 1 ){// TODO
+    if(IS_CLIENT){
+      fprintf(fp, "read protocol_type - break for Blocking read.\n");
+      char protocol_type1 = 1;
+      WRITE <char>(write_fd, &protocol_type1, sizeof(char));
 
+      fprintf(fp,"All done in demon, Killing daemon with pid -%d now.\n", getpid());
+      close(write_fd);
+      close(read_fd);
+      fclose(fp);
+      exit(0);
+    }
+    else{
+      fprintf(fp, "read protocol_type - break for Blocking read.\n");
+      fprintf(fp,"All done in demon, Killing daemon with pid -%d now.\n", getpid());
+      close(write_fd);
+      close(read_fd);
+      fclose(fp);
+      exit(0);
+    }
   }
 }
 
 void socket_break_Read_signal_handler(int){
-  close(write_fd);
-  close(read_fd);
-  exit(0);
+  char protocol_type1 = 1;
+  WRITE <char>(write_fd, &protocol_type1, sizeof(char));
 }
 
 void setUpDaemonSignalHandlers(){
