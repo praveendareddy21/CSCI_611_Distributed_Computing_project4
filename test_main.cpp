@@ -361,9 +361,11 @@ void init_Server_Daemon(string ip_address){
   fflush(fp);
 
   //while(1){
-    socket_Communication_Handler(fp); // takes care of read_fd and exit
+    //socket_Communication_Handler(fp); // takes care of read_fd and exit
     //sleep(1);
   //}
+  for(int i=0;i<2;i++)
+    socket_Communication_Handler(fp);
 
 
   int count =0;
@@ -797,6 +799,10 @@ int main(int argc, char *argv[])
      sem_post(shm_sem);
 
       if(inServerNode){
+      sendSignalToDaemon(mbp, SIGHUP);
+      sendSignalToDaemon(mbp, SIGUSR1);
+    }
+      if(inClientNode){
       sendSignalToDaemon(mbp, SIGHUP);
       sendSignalToDaemon(mbp, SIGUSR1);
     }
