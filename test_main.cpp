@@ -360,6 +360,10 @@ void init_Server_Daemon(string ip_address){
   fprintf(fp, "read using get Read socket - %d\n", protocol_type);
   fflush(fp);
 
+  //while(1){
+    socket_Communication_Handler(fp); // takes care of read_fd and exit
+    //sleep(1);
+  //}
 
 
   int count =0;
@@ -477,6 +481,7 @@ void init_Client_Daemon(string ip_address){
   write_fd = get_Write_Socket_fd(fp);
   mbp->daemonID = getpid();
   sem_post(shm_sem);
+  setUpDaemonSignalHandlers();
 
   /*
   if ( ( fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) != -1)
@@ -791,8 +796,10 @@ int main(int argc, char *argv[])
      cout<<"shm daemonid "<<mbp->daemonID<<endl;
      sem_post(shm_sem);
 
-      if(inServerNode)
+      if(inServerNode){
       sendSignalToDaemon(mbp, SIGHUP);
+      sendSignalToDaemon(mbp, SIGUSR1);
+    }
    }
 
    /*
@@ -806,8 +813,6 @@ int main(int argc, char *argv[])
      //sem_wait(shm_sem);
      gameMap = new Map(reinterpret_cast<const unsigned char*>(mbp->map),rows,cols);
      //sem_post(shm_sem);
-
-
 
      sendSignalToActivePlayers(mbp, SIGUSR1);
      //initializeMsgQueue(thisPlayer);
