@@ -196,31 +196,62 @@ void process_Socket_Player(FILE *fp, char protocol_type){
 
   sem_wait(shm_sem);
   for(int i = 0; i < 5;i++ ){
-    if(i==0 &&  (protocol_type & G_PLR0) && mbp->player_pids[i] == -1){
+    if(i==0 &&  (protocol_type & G_PLR0) && mbp->player_pids[i] == -1){ // p1 joined
       fprintf(fp, "player 1 found\n");
       mbp->player_pids[i] = getpid();
 
     }
-    if ( i==1 && (protocol_type & G_PLR1) && mbp->player_pids[i] == -1){
+    if(i==0 &&  (protocol_type & G_PLR0 == 0) && mbp->player_pids[i] != -1){ // p1 left
+      fprintf(fp, "player 1 Left\n");
+      mbp->player_pids[i] = -1;
+
+    }
+
+
+    if ( i==1 && (protocol_type & G_PLR1) && mbp->player_pids[i] == -1){ // p2 joined
       fprintf(fp, "player 2 found\n");
       mbp->player_pids[i] = getpid();
 
     }
-    if ( i==2 && (protocol_type & G_PLR2) && mbp->player_pids[i] == -1){
+    if(i==1 &&  (protocol_type & G_PLR1 == 0) && mbp->player_pids[i] != -1){ // p2 left
+      fprintf(fp, "player 2 Left\n");
+      mbp->player_pids[i] = -1;
+
+    }
+
+    if ( i==2 && (protocol_type & G_PLR2) && mbp->player_pids[i] == -1){ // p3 joined
       fprintf(fp, "player 3 found\n");
       mbp->player_pids[i] = getpid();
 
     }
-    if ( i==3 && (protocol_type & G_PLR3) && mbp->player_pids[i] == -1){
+    if(i==2 &&  (protocol_type & G_PLR2 == 0) && mbp->player_pids[i] != -1){ // p3 left
+      fprintf(fp, "player 3 Left\n");
+      mbp->player_pids[i] = -1;
+
+    }
+
+    if ( i==3 && (protocol_type & G_PLR3) && mbp->player_pids[i] == -1){ // p4 joined
       fprintf(fp, "player 4 found\n");
       mbp->player_pids[i] = getpid();
 
     }
+    if(i==3 &&  (protocol_type & G_PLR3 == 0) && mbp->player_pids[i] != -1){ // p4 left
+      fprintf(fp, "player 4 Left\n");
+      mbp->player_pids[i] = -1;
+
+    }
+
     if ( i==4 && (protocol_type & G_PLR4) && mbp->player_pids[i] == -1){
       fprintf(fp, "player 5 found\n");
       mbp->player_pids[i] = getpid();
 
     }
+    if(i==4 &&  (protocol_type & G_PLR4 == 0) && mbp->player_pids[i] != -1){ // p5 left
+      fprintf(fp, "player 5 Left\n");
+      mbp->player_pids[i] = -1;
+
+    }
+
   }// end of for loop
   sem_post(shm_sem);
 
@@ -268,10 +299,14 @@ void process_Socket_Map(FILE *fp, char protocol_type){
 
 
 void socket_Communication_Handler(FILE *fp){
-  char protocol_type = ' ' ;
+  char protocol_type = ' ' ; int return_code;
 
   fprintf(fp, "Attempting to start Socket communications protocol\n");
-  READ <char>(read_fd, &protocol_type, sizeof(char));
+  return_code = READ <char>(read_fd, &protocol_type, sizeof(char));
+  if(return_code == -1){
+    fprintf(fp, "Attempting to start Socket returned error Code -1.\n");
+    fflush(fp);
+  }
 
   if (protocol_type&G_SOCKPLR ){
     fprintf(fp, "read protocol_type - Socket_Player from client.\n");
@@ -305,7 +340,7 @@ void socket_break_Read_signal_handler(int){
 
 void setUpDaemonSignalHandlers(){
 
-  struct sigaction break_read;
+  struct sigaction break_read; //TODO
   break_read.sa_handler = socket_break_Read_signal_handler;
   break_read.sa_flags=0;
   sigemptyset(&break_read.sa_mask);
@@ -365,15 +400,6 @@ void init_Server_Daemon(string ip_address){
   fflush(fp);
 
 
-
-
-  char protocol_type;
-  READ <char>(read_fd, &protocol_type, sizeof(char));
-
-  fprintf(fp, "read using get Read socket - %d\n", protocol_type);
-  fflush(fp);
-
-
   fprintf(fp, "Entering infinite loop with blocking read now.\n");
   fflush(fp);
 
@@ -382,10 +408,8 @@ void init_Server_Daemon(string ip_address){
     sleep(1);
   }
 
-
-
-
-  fprintf(fp,"All done in server demon, Killing daemon with pid -%d now.\n", getpid());
+  // control never reaches here
+  fprintf(fp,"All done in Server demon, Killing daemon with pid -%d now.\n", getpid());
   fclose(fp);
   exit(0);
 
@@ -422,13 +446,6 @@ void intialize_active_plr_client(FILE *fp, char protocol_type){
     }
   }// end of for loop
 
-  //sem_wait(shm_sem);
-  //for(int i = 0; i<Vector_size; i++){
-  //  mbp->map[mapChangesVector[i].first] = mapChangesVector[i].second;
-  //}
-  //sem_post(shm_sem);
-  //sendSignalToActivePlayersOnNode(mbp, SIGUSR1);
-
 }
 
 void init_Client_Daemon(string ip_address){
@@ -462,23 +479,22 @@ void init_Client_Daemon(string ip_address){
 
 
   for(int i = 0; i < 5;i++ ){
-    if(i==0 &&  (active_plr_mask & G_PLR0) && mbp->player_pids[i] == -1){
-      mbp->player_pids[i] = getpid();
-    }
-    if ( i==1 && (active_plr_mask & G_PLR1) && mbp->player_pids[i] == -1){
-      mbp->player_pids[i] = getpid();
-    }
-    if ( i==2 && (active_plr_mask & G_PLR2) && mbp->player_pids[i] == -1){
-      mbp->player_pids[i] = getpid();
-    }
-    if ( i==3 && (active_plr_mask & G_PLR3) && mbp->player_pids[i] == -1){
-      mbp->player_pids[i] = getpid();
-    }
-    if ( i==4 && (active_plr_mask & G_PLR4) && mbp->player_pids[i] == -1){
-      mbp->player_pids[i] = getpid();
-    }
+  if(i==0 &&  (active_plr_mask & G_PLR0) && mbp->player_pids[i] == -1){
+    mbp->player_pids[i] = getpid();
   }
-
+  if ( i==1 && (active_plr_mask & G_PLR1) && mbp->player_pids[i] == -1){
+    mbp->player_pids[i] = getpid();
+  }
+  if ( i==2 && (active_plr_mask & G_PLR2) && mbp->player_pids[i] == -1){
+    mbp->player_pids[i] = getpid();
+  }
+  if ( i==3 && (active_plr_mask & G_PLR3) && mbp->player_pids[i] == -1){
+    mbp->player_pids[i] = getpid();
+  }
+  if ( i==4 && (active_plr_mask & G_PLR4) && mbp->player_pids[i] == -1){
+    mbp->player_pids[i] = getpid();
+  }
+}
 
   for (int i=0; i < rows*cols; i++)
       mbp->map[i] = mbpVector[i];
@@ -487,23 +503,6 @@ void init_Client_Daemon(string ip_address){
   mbp->daemonID = getpid();
   sem_post(shm_sem);
   setUpDaemonSignalHandlers();
-
-  /*
-  if ( ( fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) != -1)
-    fprintf(fp,"Shm open successful in client daemon \n");
-  else
-    fprintf(fp,"Shm open failed in client daemon \n");
-
-  fprintf(fp,"initilized Shm, posting semaphore \n");
-  fflush(fp);
-  */
-
-
-
-  char protocol_type = 7;
-  WRITE <char>(write_fd, &protocol_type, sizeof(char));
-  fprintf(fp, "write using get Write socket - %d\n", protocol_type);
-  fflush(fp);
 
 
   fprintf(fp, "Entering infinite loop with blocking read now.\n");
@@ -519,6 +518,7 @@ void init_Client_Daemon(string ip_address){
   fclose(fp);
   exit(0);
 }
+
 
 void invoke_in_Daemon( void (*f) (string)  ,string ip_address){
 
