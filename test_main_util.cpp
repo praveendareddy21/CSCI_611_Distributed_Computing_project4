@@ -219,11 +219,22 @@ const char * processPlayerMove(mapboard * mbp, int & thisPlayerLoc, int thisPlay
   return emptyMessage;
 }
 
-bool isGameBoardEmpty(mapboard * mbp){
+bool isGameBoardEmpty(mapboard * mbp){ // TODO
+/*
    if (mbp->player_pids[0] == -1 && mbp->player_pids[1] == -1 && mbp->player_pids[2] == -1 && mbp->player_pids[3] == -1 && mbp->player_pids[4] == -1)
    return true;
    else
    return false;
+*/
+  if ( (mbp->player_pids[0] == -1 || mbp->player_pids[0] == mbp->daemonID )
+        && (mbp->player_pids[1] == -1 || mbp->player_pids[1] == mbp->daemonID )
+        && (mbp->player_pids[2] == -1 || mbp->player_pids[2] == mbp->daemonID )
+        && (mbp->player_pids[3] == -1 || mbp->player_pids[3] == mbp->daemonID )
+        && (mbp->player_pids[4] == -1 || mbp->player_pids[4] == mbp->daemonID )
+      )
+      return true;
+  else
+  return false;
 
 }
 

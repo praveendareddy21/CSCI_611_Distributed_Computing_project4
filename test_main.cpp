@@ -438,12 +438,8 @@ void init_Client_Daemon(string ip_address){
   fprintf(fp, "Completed Client Daemon Initialize IPC. \n");
   fflush(fp);
 
-  shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,1);
+  shm_sem=sem_open(SHM_SM_NAME,O_CREAT,S_IRUSR|S_IWUSR,0);
 
-  //fprintf(fp,"checkpoint 0.\n");
-  //fflush(fp);
-
-  sem_wait(shm_sem);
   mbp = initSharedMemory(rows, cols);
 
   //fprintf(fp,"checkpoint 2.\n");
@@ -451,14 +447,33 @@ void init_Client_Daemon(string ip_address){
 
   mbp->rows = rows;
   mbp->cols = cols;
-  mbp->player_pids[0] = -1; mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
-  mbp->daemonID = -1;
+  mbp->player_pids[0] = getpid(); mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
+
+  /*
+  for(int i = 0; i < 5;i++ ){
+    if(i==0 &&  (active_plr_mask & G_PLR0) && mbp->player_pids[i] == -1){
+      mbp->player_pids[i] = getpid();
+    }
+    if ( i==1 && (active_plr_mask & G_PLR1) && mbp->player_pids[i] == -1){
+      mbp->player_pids[i] = getpid();
+    }
+    if ( i==2 && (active_plr_mask & G_PLR2) && mbp->player_pids[i] == -1){
+      mbp->player_pids[i] = getpid();
+    }
+    if ( i==3 && (active_plr_mask & G_PLR3) && mbp->player_pids[i] == -1){
+      mbp->player_pids[i] = getpid();
+    }
+    if ( i==4 && (active_plr_mask & G_PLR4) && mbp->player_pids[i] == -1){
+      mbp->player_pids[i] = getpid();
+    }
+  }
+  */
 
   for (int i=0; i < rows*cols; i++)
       mbp->map[i] = mbpVector[i];
 
   write_fd = get_Write_Socket_fd(fp);
-
+  mbp->daemonID = getpid();
   sem_post(shm_sem);
 
   /*
@@ -523,7 +538,8 @@ void refreshMap(int){
 
 void sendSignalToActivePlayers(mapboard * mbp, int signal_enum){
   for(int i=0; i<5; i++){
-    if(mbp->player_pids[i] != -1 && i != getPlayerFromMask(thisPlayer) ){ // to other active players only
+    if(mbp->player_pids[i] != -1 && i != getPlayerFromMask(thisPlayer)
+    && mbp->daemonID != -1 && mbp->player_pids[i] != mbp->daemonID){ // to other active players only
       kill(mbp->player_pids[i], signal_enum);
     }
   }
@@ -531,7 +547,9 @@ void sendSignalToActivePlayers(mapboard * mbp, int signal_enum){
 
 void sendSignalToActivePlayersOnNode(mapboard * mbp, int signal_enum){
   for(int i=0; i<5; i++){
-    if(mbp->player_pids[i] != -1 && mbp->player_pids[i] != getpid() ){// called by daemon to others
+    if(mbp->player_pids[i] != -1
+      && mbp->daemonID != -1
+       && mbp->player_pids[i] != mbp->daemonID ){// called by daemon to others
       kill(mbp->player_pids[i], signal_enum);
     }
   }
@@ -764,6 +782,7 @@ int main(int argc, char *argv[])
      rows = mbp->rows;
      cols = mbp->cols;
      thisPlayer = placeIncrementPlayerOnMap(mbp, thisPlayerLoc);
+     cout<<"shm daemonid "<<mbp->daemonID<<endl;
      sem_post(shm_sem);
    }
 
