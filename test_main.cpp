@@ -194,34 +194,36 @@ void process_Socket_Message(FILE *fp, char protocol_type){
 void process_Socket_Player(FILE *fp, char protocol_type){
   fprintf(fp, "in process_Socket_Player %d\n",protocol_type);
 
+  sem_wait(shm_sem);
   for(int i = 0; i < 5;i++ ){
-    if(i==0 &&  (protocol_type & G_PLR0) ){
+    if(i==0 &&  (protocol_type & G_PLR0) && mbp->player_pids[i] == -1){
       fprintf(fp, "player 1 found\n");
+      mbp->player_pids[i] = getpid();
 
     }
-    if ( i==1 && (protocol_type & G_PLR1) ){
+    if ( i==1 && (protocol_type & G_PLR1) && mbp->player_pids[i] == -1){
       fprintf(fp, "player 2 found\n");
+      mbp->player_pids[i] = getpid();
 
     }
-    if ( i==2 && (protocol_type & G_PLR2) ){
+    if ( i==2 && (protocol_type & G_PLR2) && mbp->player_pids[i] == -1){
       fprintf(fp, "player 3 found\n");
+      mbp->player_pids[i] = getpid();
 
     }
-    if ( i==3 && (protocol_type & G_PLR3) ){
+    if ( i==3 && (protocol_type & G_PLR3) && mbp->player_pids[i] == -1){
       fprintf(fp, "player 4 found\n");
+      mbp->player_pids[i] = getpid();
 
     }
-    if ( i==4 && (protocol_type & G_PLR4) ){
+    if ( i==4 && (protocol_type & G_PLR4) && mbp->player_pids[i] == -1){
       fprintf(fp, "player 5 found\n");
+      mbp->player_pids[i] = getpid();
 
     }
   }// end of for loop
+  sem_post(shm_sem);
 
-  //sem_wait(shm_sem);
-  //for(int i = 0; i<Vector_size; i++){
-  //  mbp->map[mapChangesVector[i].first] = mapChangesVector[i].second;
-  //}
-  //sem_post(shm_sem);
   //sendSignalToActivePlayersOnNode(mbp, SIGUSR1);
 
 }
@@ -447,9 +449,9 @@ void init_Client_Daemon(string ip_address){
 
   mbp->rows = rows;
   mbp->cols = cols;
-  mbp->player_pids[0] = getpid(); mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
+  mbp->player_pids[0] = -1; mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
 
-  /*
+
   for(int i = 0; i < 5;i++ ){
     if(i==0 &&  (active_plr_mask & G_PLR0) && mbp->player_pids[i] == -1){
       mbp->player_pids[i] = getpid();
@@ -467,7 +469,7 @@ void init_Client_Daemon(string ip_address){
       mbp->player_pids[i] = getpid();
     }
   }
-  */
+
 
   for (int i=0; i < rows*cols; i++)
       mbp->map[i] = mbpVector[i];
@@ -704,6 +706,10 @@ void setUpSignalHandlers(){
 
 }
 
+void sendSignalToDaemon(mapboard * mbp, int signal_enum){
+    if(mbp->daemonID != -1 ){
+       kill(mbp->daemonID, signal_enum);}
+}
 
 int main(int argc, char *argv[])
 {
@@ -784,6 +790,9 @@ int main(int argc, char *argv[])
      thisPlayer = placeIncrementPlayerOnMap(mbp, thisPlayerLoc);
      cout<<"shm daemonid "<<mbp->daemonID<<endl;
      sem_post(shm_sem);
+
+      if(inServerNode)
+      sendSignalToDaemon(mbp, SIGHUP);
    }
 
    /*
@@ -798,9 +807,7 @@ int main(int argc, char *argv[])
      gameMap = new Map(reinterpret_cast<const unsigned char*>(mbp->map),rows,cols);
      //sem_post(shm_sem);
 
-     if(mbp->daemonID != -1){
-       //kill(mbp->daemonID, SIGHUP);
-     }
+
 
      sendSignalToActivePlayers(mbp, SIGUSR1);
      //initializeMsgQueue(thisPlayer);
@@ -830,9 +837,7 @@ int main(int argc, char *argv[])
            sendSignalToActivePlayers(mbp, SIGUSR1);
            (*gameMap).drawMap();
 
-           if(mbp->daemonID != -1){
-             kill(mbp->daemonID, SIGUSR1);
-           }
+           sendSignalToDaemon(mbp, SIGUSR1);
 
          }
 
