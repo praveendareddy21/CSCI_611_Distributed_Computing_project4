@@ -549,8 +549,8 @@ void handleGameExit(int){
   sendSignalToDaemon(mbp, SIGUSR1);
 
   bool isBoardEmpty = isGameBoardEmpty(mbp); //TODO
-  //mq_close(readqueue_fd);
-  //mq_unlink(mq_name.c_str());
+  mq_close(readqueue_fd);
+  mq_unlink(mq_name.c_str());
 
 
   if(isBoardEmpty)
@@ -680,11 +680,10 @@ void setUpSignalHandlers(){
   sigaction(SIGUSR1, &my_sig_handler, NULL);
 
   struct sigaction action_to_take;
-  //action_to_take.sa_handler=read_message;
-  //action_to_take.sa_handler=receiveMessage;
-  //sigemptyset(&action_to_take.sa_mask);
-  //action_to_take.sa_flags=0;
-  //sigaction(SIGUSR2, &action_to_take, NULL);
+  action_to_take.sa_handler=receiveMessage;
+  sigemptyset(&action_to_take.sa_mask);
+  action_to_take.sa_flags=0;
+  sigaction(SIGUSR2, &action_to_take, NULL);
 
 }
 
@@ -706,7 +705,6 @@ int main(int argc, char *argv[])
     {
       invoke_in_Daemon(init_Client_Daemon, ip_address);
       // wait loop until shm is inited by client daemon
-
       while(1){ // loop until mbp is updated
           sleep(1);
           if ( (fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)
@@ -716,12 +714,7 @@ int main(int argc, char *argv[])
             break;
           }
       }
-      //sem_wait(shm_sem);
-
-      //sem_post(shm_sem);
-
     }
-
   }else{
     inServerNode = true;
   }
@@ -783,7 +776,7 @@ int main(int argc, char *argv[])
      gameMap = new Map(reinterpret_cast<const unsigned char*>(mbp->map),rows,cols);
 
      sendSignalToActivePlayers(mbp, SIGUSR1);
-     //initializeMsgQueue(thisPlayer);
+     initializeMsgQueue(thisPlayer);
      setUpSignalHandlers();
 
 
@@ -822,12 +815,11 @@ int main(int argc, char *argv[])
        else if(keyInput == 109){ // key m for message
          int toPlayerInt = getPlayerFromMask((*gameMap).getPlayer(getActivePlayersMask()) );
          string msg = (*gameMap).getMessage();
-         //sendMsgToPlayer(thisPlayer, toPlayerInt, msg, true);
+         sendMsgToPlayer(thisPlayer, toPlayerInt, msg, true);
        }
        else if(keyInput == 98){ // key b for broadcast
          string msg = (*gameMap).getMessage();
-         sendSignalToDaemon(mbp, SIGINT);
-         //sendMsgBroadcastToPlayers(thisPlayer, msg);
+         sendMsgBroadcastToPlayers(thisPlayer, msg);
        }
 
 
