@@ -79,6 +79,7 @@ void sendSignalToActivePlayersOnNode(mapboard * mbp, int signal_enum);
 void sendSignalToDaemon(mapboard * mbp, int signal_enum);
 void initializeMsgQueue(int thisPlayer);
 void initializeMsgQueueInDaemon(int thisPlayer);
+void sendMsgFromDaemonToPlayer(int toPlayerInt, string msg);
 
 Map * gameMap = NULL;
 mqd_t readqueue_fd; //message queue file descriptor
@@ -174,13 +175,15 @@ void socket_Map_signal_handler(int){
 
 void process_Socket_Message(FILE *fp, char protocol_type){
 
-  int msg_length = 0;
+  int msg_length = 0, toPlayerInt;
   char msg_cstring[100];
 
   READ <int>(read_fd, &msg_length, sizeof(int));
   READ <char>(read_fd, msg_cstring, msg_length*sizeof(char));
 
-  fprintf(fp, "in server : msglen %d - msg - %s\n",msg_length, msg_cstring);
+  fprintf(fp, "in process_Socket_Message : msglen %d - msg - %s\n",msg_length, msg_cstring);
+
+  //sendMsgFromDaemonToPlayer(toPlayerInt, msg);
 
 }
 
@@ -641,6 +644,36 @@ void sendMsgToPlayer(int thisPlayer, int toPlayerInt, string msg, bool is_msg_pr
     msg_prefix = "Player #" + itos_utility(getPlayerFromMask(thisPlayer)+1) + " says:";
     msg = msg_prefix + msg;
   }
+
+
+  if((writequeue_fd=mq_open(msg_queue_name.c_str(), O_WRONLY|O_NONBLOCK))==-1)
+  {
+
+    perror("Error in mq_send");
+    handleGameExit(0);
+  }
+
+  char message_text[251];
+  const char *ptr = msg.c_str();
+  memset(message_text, 0, 251);
+  strncpy(message_text, ptr, 250);
+
+  if(  mq_send(writequeue_fd, message_text, strlen(message_text), 0) == -1)
+  {
+      perror("Error in mq_send");
+      handleGameExit(0);
+  }
+  mq_close(writequeue_fd);
+
+}
+
+void sendMsgFromDaemonToPlayer(int toPlayerInt, string msg){
+  mqd_t writequeue_fd;
+  string msg_queue_name = MSG_QUEUE_PREFIX, msg_queue_suffix;
+
+  msg_queue_suffix = itos_utility(toPlayerInt);
+  msg_queue_name = msg_queue_name + msg_queue_suffix;
+
 
 
   if((writequeue_fd=mq_open(msg_queue_name.c_str(), O_WRONLY|O_NONBLOCK))==-1)
