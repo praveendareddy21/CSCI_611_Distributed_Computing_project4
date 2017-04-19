@@ -161,7 +161,7 @@ string receiveMessagebyDaemon(mqd_t read_fd){
 }
 
 void socket_Message_signal_handler(int){
-  char p_mask = G_PLR0;
+  char p_mask = G_PLR1;
   send_Socket_Message(p_mask, "hardcode message");
   return;
 
@@ -170,7 +170,7 @@ void socket_Message_signal_handler(int){
     if (daemon_readqueue_fds[i] != -1){
         msg_str = receiveMessagebyDaemon(daemon_readqueue_fds[i]);
         if(msg_str != ""){
-          send_Socket_Message(G_PLR0, msg_str);
+          send_Socket_Message(p_mask, msg_str);
         }
     }
 
@@ -215,7 +215,7 @@ void socket_Map_signal_handler(int){
 
 }
 
-void process_Socket_Message(FILE *fp, char protocol_type){
+void process_Socket_Message(FILE *fp, char active_plr_mask){
 
   int msg_length = 0, toPlayerInt;
   char msg_cstring[100];
@@ -225,7 +225,29 @@ void process_Socket_Message(FILE *fp, char protocol_type){
 
   fprintf(fp, "in process_Socket_Message : msglen %d - msg - %s\n",msg_length, msg_cstring);
   string msg(msg_cstring);
-  sendMsgFromDaemonToPlayer(1, msg);
+
+  for(int i = 0; i < 5;i++ ){
+    if(i==0 &&  (active_plr_mask & G_PLR0) ){
+      fprintf(fp, "sending Message to Player %d", i+1);
+      sendMsgFromDaemonToPlayer(i, msg);
+    }
+    if(i==1 &&  (active_plr_mask & G_PLR1) ){
+      fprintf(fp, "sending Message to Player %d", i+1);
+      sendMsgFromDaemonToPlayer(i, msg);
+    }
+    if(i==2 &&  (active_plr_mask & G_PLR2) ){
+      fprintf(fp, "sending Message to Player %d", i+1);
+      sendMsgFromDaemonToPlayer(i, msg);
+    }
+    if(i==3 &&  (active_plr_mask & G_PLR3) ){
+      fprintf(fp, "sending Message to Player %d", i+1);
+      sendMsgFromDaemonToPlayer(i, msg);
+    }
+    if(i==4 &&  (active_plr_mask & G_PLR4) ){
+      fprintf(fp, "sending Message to Player %d", i+1);
+      sendMsgFromDaemonToPlayer(i, msg);
+    }
+  }//end of for loop
 
 }
 
