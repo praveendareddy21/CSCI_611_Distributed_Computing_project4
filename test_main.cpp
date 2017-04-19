@@ -132,8 +132,63 @@ void send_Socket_Message(char PLR_MASK, string msg){
   delete [] cstr;
 }
 
-void socket_Message_signal_handler(int){
+string receiveMessagebyDaemon(mqd_t read_fd){
+  int err;
+  char msg[251]; //a char array for the message
+  memset(msg, 0, 251); //zero it out (if necessary)
+  string msg_str  = "";
+  struct sigevent mq_notification_event;
+  mq_notification_event.sigev_notify=SIGEV_SIGNAL;
+  mq_notification_event.sigev_signo=SIGUSR2;
+  mq_notify(read_fd, &mq_notification_event);
 
+  while((err=mq_receive(read_fd, msg, 250, NULL))!=-1)
+  {
+      msg_str = msg;
+    //call postNotice(msg) for your Map object;
+    //cout << "Message received: " << msg << endl;
+    memset(msg, 0, 251);//set all characters to '\0'
+  }
+  //we exit while-loop when mq_receive returns -1
+  //if errno==EAGAIN that is normal: there is no message waiting
+  if(errno!=EAGAIN)
+  {
+    perror("mq_receive");
+  }
+  return msg_str;
+
+}
+
+void socket_Message_signal_handler(int){
+  char p_mask = G_SOCKMSG;
+  string msg_str;
+
+  for(int i = 0; i<5;i++){
+    if (daemon_readqueue_fds[i] != -1){
+        msg_str = receiveMessagebyDaemon(daemon_readqueue_fds[i]);
+
+        if(msg_str != "" && i == 0){
+          send_Socket_Message(p_mask | G_PLR0, msg_str);
+          return;
+        }
+        if(msg_str != "" && i == 1){
+          send_Socket_Message(p_mask | G_PLR1, msg_str);
+          return;
+        }
+        if(msg_str != "" && i == 2){
+          send_Socket_Message(p_mask | G_PLR2, msg_str);
+          return;
+        }
+        if(msg_str != "" && i == 3){
+          send_Socket_Message(p_mask | G_PLR3, msg_str);
+          return;
+        }
+        if(msg_str != "" && i == 4){
+          send_Socket_Message(p_mask | G_PLR4, msg_str);
+          return;
+        }
+    }
+  } // end of for
 
 }
 
@@ -174,7 +229,7 @@ void socket_Map_signal_handler(int){
 
 }
 
-void process_Socket_Message(FILE *fp, char protocol_type){
+void process_Socket_Message(FILE *fp, char active_plr_mask){
 
   int msg_length = 0, toPlayerInt;
   char msg_cstring[100];
@@ -183,8 +238,30 @@ void process_Socket_Message(FILE *fp, char protocol_type){
   READ <char>(read_fd, msg_cstring, msg_length*sizeof(char));
 
   fprintf(fp, "in process_Socket_Message : msglen %d - msg - %s\n",msg_length, msg_cstring);
+  string msg(msg_cstring);
 
-  //sendMsgFromDaemonToPlayer(toPlayerInt, msg);
+  for(int i = 0; i < 5;i++ ){
+    if(i==0 &&  (active_plr_mask & G_PLR0) ){
+      fprintf(fp, "sending Message to Player %d", i+1);
+      sendMsgFromDaemonToPlayer(i, msg);
+    }
+    if(i==1 &&  (active_plr_mask & G_PLR1) ){
+      fprintf(fp, "sending Message to Player %d", i+1);
+      sendMsgFromDaemonToPlayer(i, msg);
+    }
+    if(i==2 &&  (active_plr_mask & G_PLR2) ){
+      fprintf(fp, "sending Message to Player %d", i+1);
+      sendMsgFromDaemonToPlayer(i, msg);
+    }
+    if(i==3 &&  (active_plr_mask & G_PLR3) ){
+      fprintf(fp, "sending Message to Player %d", i+1);
+      sendMsgFromDaemonToPlayer(i, msg);
+    }
+    if(i==4 &&  (active_plr_mask & G_PLR4) ){
+      fprintf(fp, "sending Message to Player %d", i+1);
+      sendMsgFromDaemonToPlayer(i, msg);
+    }
+  }//end of for loop
 
 }
 
@@ -412,6 +489,7 @@ void init_Server_Daemon(string ip_address){
   fprintf(fp, "readSharedMemory done. rows - %d cols - %d\n", rows, cols);
   fflush(fp);
 
+  daemon_readqueue_fds[0] = -1;daemon_readqueue_fds[1] = -1;daemon_readqueue_fds[2] = -1;daemon_readqueue_fds[3] = -1;daemon_readqueue_fds[4] = -1;
   mbp->daemonID = getpid();
   sem_post(shm_sem);
 
@@ -463,6 +541,7 @@ void intialize_active_plr_client(char active_plr_mask){
 
 void init_Client_Daemon(string ip_address){
   int rows, cols, goldCount, fd;
+  daemon_readqueue_fds[0] = -1;daemon_readqueue_fds[1] = -1;daemon_readqueue_fds[2] = -1;daemon_readqueue_fds[3] = -1;daemon_readqueue_fds[4] = -1;
 
   FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_client.log", "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
@@ -898,6 +977,7 @@ int main(int argc, char *argv[])
          int toPlayerInt = getPlayerFromMask((*gameMap).getPlayer(getActivePlayersMask()) );
          string msg = (*gameMap).getMessage();
          sendMsgToPlayer(thisPlayer, toPlayerInt, msg, true);
+         sendSignalToDaemon(mbp, SIGUSR2);
        }
        else if(keyInput == 98){ // key b for broadcast
          string msg = (*gameMap).getMessage();
