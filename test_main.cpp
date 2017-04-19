@@ -134,6 +134,7 @@ void send_Socket_Message(char PLR_MASK, string msg){
 
 void socket_Message_signal_handler(int){
 
+
 }
 
 void send_Socket_Map(vector<pair<short,char> > mapChangesVector){
@@ -438,18 +439,23 @@ void intialize_active_plr_client(char active_plr_mask){
     for(int i = 0; i < 5;i++ ){
       if(i==0 &&  (active_plr_mask & G_PLR0) && mbp->player_pids[i] == -1){
         mbp->player_pids[i] = getpid();
+        initializeMsgQueueInDaemon(i);
       }
       if ( i==1 && (active_plr_mask & G_PLR1) && mbp->player_pids[i] == -1){
         mbp->player_pids[i] = getpid();
+        initializeMsgQueueInDaemon(i);
       }
       if ( i==2 && (active_plr_mask & G_PLR2) && mbp->player_pids[i] == -1){
         mbp->player_pids[i] = getpid();
+        initializeMsgQueueInDaemon(i);
       }
       if ( i==3 && (active_plr_mask & G_PLR3) && mbp->player_pids[i] == -1){
         mbp->player_pids[i] = getpid();
+        initializeMsgQueueInDaemon(i);
       }
       if ( i==4 && (active_plr_mask & G_PLR4) && mbp->player_pids[i] == -1){
         mbp->player_pids[i] = getpid();
+        initializeMsgQueueInDaemon(i);
       }
     }
 
