@@ -160,11 +160,20 @@ string receiveMessagebyDaemon(mqd_t read_fd){
 }
 
 void socket_Message_signal_handler(int){
+  /*
+  string msg_str1 = receiveMessagebyDaemon(daemon_readqueue_fds[0]);
+  send_Socket_Message(G_PLR0, msg_str1);
+  return;
+  */
+
   char p_mask = G_SOCKMSG;
   string msg_str;
+
+/*
   for(int i = 0; i<5;i++){
     if (daemon_readqueue_fds[i] != -1){
         msg_str = receiveMessagebyDaemon(daemon_readqueue_fds[i]);
+
         if(msg_str != "" && i == 0){
           send_Socket_Message(G_PLR0, msg_str);
           return;
@@ -186,8 +195,31 @@ void socket_Message_signal_handler(int){
           return;
         }
     }
+  } // end of for
+  */
+  for(int i = 0; i<5;i++){
+    if (daemon_readqueue_fds[i] != -1){
+        msg_str = receiveMessagebyDaemon(daemon_readqueue_fds[i]);
 
-  }
+        if( i == 0){
+          send_Socket_Message(G_PLR0, msg_str);
+        }
+        if( i == 1){
+          send_Socket_Message(G_PLR1, msg_str);
+        }
+        if( i == 2){
+          send_Socket_Message(G_PLR2, msg_str);
+        }
+        if( i == 3){
+          send_Socket_Message(G_PLR3, msg_str);
+        }
+        if( i == 4){
+          send_Socket_Message(G_PLR4, msg_str);
+        }
+    }
+  } // end of for
+
+
 }
 
 void send_Socket_Map(vector<pair<short,char> > mapChangesVector){
