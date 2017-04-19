@@ -77,6 +77,8 @@ void handleGameExit(int);
 void sendSignalToActivePlayers(mapboard * mbp, int signal_enum);
 void sendSignalToActivePlayersOnNode(mapboard * mbp, int signal_enum);
 void sendSignalToDaemon(mapboard * mbp, int signal_enum);
+void initializeMsgQueue(int thisPlayer);
+void initializeMsgQueueInDaemon(int thisPlayer);
 
 Map * gameMap = NULL;
 mqd_t readqueue_fd; //message queue file descriptor
@@ -87,6 +89,8 @@ int thisPlayer = 0, thisPlayerLoc= 0;
 char initial_map[2100];
 int write_fd = -1;
 int read_fd = -1;
+mqd_t daemon_readqueue_fds[5]; //message queue file descriptor in daemon
+string daemon_mq_names[5];
 
 //####################################################### test map util #######################################
 
@@ -188,56 +192,71 @@ void process_Socket_Player(FILE *fp, char protocol_type){
       if(i==0 &&  (protocol_type & G_PLR0) && mbp->player_pids[i] == -1){ // p1 joined
         fprintf(fp, "player 1 found\n");
         mbp->player_pids[i] = getpid();
+        initializeMsgQueueInDaemon(i);
       }
       if(i==0 &&  !(protocol_type & G_PLR0) && mbp->player_pids[i] != -1){ // p1 left
         fprintf(fp, "player 1 Left\n");
         mbp->player_pids[i] = -1;
 
+        mq_close(daemon_readqueue_fds[i]);
+        mq_unlink(daemon_mq_names[i].c_str());
       }
 
 
       if ( i==1 && (protocol_type & G_PLR1) && mbp->player_pids[i] == -1){ // p2 joined
         fprintf(fp, "player 2 found\n");
         mbp->player_pids[i] = getpid();
+        initializeMsgQueueInDaemon(i);
 
       }
       if(i==1 &&  !(protocol_type & G_PLR1) && mbp->player_pids[i] != -1){ // p2 left
         fprintf(fp, "player 2 Left\n");
         mbp->player_pids[i] = -1;
 
+        mq_close(daemon_readqueue_fds[i]);
+        mq_unlink(daemon_mq_names[i].c_str());
       }
 
       if ( i==2 && (protocol_type & G_PLR2) && mbp->player_pids[i] == -1){ // p3 joined
         fprintf(fp, "player 3 found\n");
         mbp->player_pids[i] = getpid();
+        initializeMsgQueueInDaemon(i);
 
       }
       if(i==2 &&  !(protocol_type & G_PLR2) && mbp->player_pids[i] != -1){ // p3 left
         fprintf(fp, "player 3 Left\n");
         mbp->player_pids[i] = -1;
 
+        mq_close(daemon_readqueue_fds[i]);
+        mq_unlink(daemon_mq_names[i].c_str());
       }
 
       if ( i==3 && (protocol_type & G_PLR3) && mbp->player_pids[i] == -1){ // p4 joined
         fprintf(fp, "player 4 found\n");
         mbp->player_pids[i] = getpid();
+        initializeMsgQueueInDaemon(i);
 
       }
       if(i==3 &&  !(protocol_type & G_PLR3) && mbp->player_pids[i] != -1){ // p4 left
         fprintf(fp, "player 4 Left\n");
         mbp->player_pids[i] = -1;
 
+        mq_close(daemon_readqueue_fds[i]);
+        mq_unlink(daemon_mq_names[i].c_str());
       }
 
       if ( i==4 && (protocol_type & G_PLR4) && mbp->player_pids[i] == -1){
         fprintf(fp, "player 5 found\n");
         mbp->player_pids[i] = getpid();
+        initializeMsgQueueInDaemon(i);
 
       }
       if(i==4 &&  !(protocol_type & G_PLR4) && mbp->player_pids[i] != -1){ // p5 left
         fprintf(fp, "player 5 Left\n");
         mbp->player_pids[i] = -1;
 
+        mq_close(daemon_readqueue_fds[i]);
+        mq_unlink(daemon_mq_names[i].c_str());
       }
 
     }// end of for loop
@@ -572,6 +591,30 @@ void initializeMsgQueue(int thisPlayer){
   mq_attributes.mq_msgsize=120;
 
   if((readqueue_fd=mq_open(mq_name.c_str(), O_RDONLY|O_CREAT|O_EXCL|O_NONBLOCK,
+          S_IRUSR|S_IWUSR, &mq_attributes))==-1)
+  {
+
+    perror("mq_open");
+    handleGameExit(0);
+  }
+  //set up message queue to receive signal whenever message comes in
+  struct sigevent mq_notification_event;
+  mq_notification_event.sigev_notify=SIGEV_SIGNAL;
+  mq_notification_event.sigev_signo=SIGUSR2;
+  mq_notify(readqueue_fd, &mq_notification_event);
+
+
+}
+
+void initializeMsgQueueInDaemon(int thisPlayerNumber){
+  daemon_mq_names[thisPlayerNumber] = MSG_QUEUE_PREFIX;
+  daemon_mq_names[thisPlayerNumber] = daemon_mq_names[thisPlayerNumber] + itos_utility(thisPlayerNumber);
+  struct mq_attr mq_attributes;
+  mq_attributes.mq_flags=0;
+  mq_attributes.mq_maxmsg=10;
+  mq_attributes.mq_msgsize=120;
+
+  if((daemon_readqueue_fds[thisPlayerNumber] = mq_open(daemon_mq_names[thisPlayerNumber].c_str(), O_RDONLY|O_CREAT|O_EXCL|O_NONBLOCK,
           S_IRUSR|S_IWUSR, &mq_attributes))==-1)
   {
 
