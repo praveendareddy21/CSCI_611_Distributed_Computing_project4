@@ -188,7 +188,6 @@ void process_Socket_Player(FILE *fp, char protocol_type){
       if(i==0 &&  (protocol_type & G_PLR0) && mbp->player_pids[i] == -1){ // p1 joined
         fprintf(fp, "player 1 found\n");
         mbp->player_pids[i] = getpid();
-
       }
       if(i==0 &&  !(protocol_type & G_PLR0) && mbp->player_pids[i] != -1){ // p1 left
         fprintf(fp, "player 1 Left\n");
@@ -243,6 +242,14 @@ void process_Socket_Player(FILE *fp, char protocol_type){
 
     }// end of for loop
   sem_post(shm_sem);
+
+  if(protocol_type == -128 ){
+    fprintf(fp, "No active players left in Game.\n");
+    fflush(fp);
+    //socket_break_Read_signal_handler();
+    char protocol_type1 = 1;
+    WRITE <char>(write_fd, &protocol_type1, sizeof(char));
+  }
 
 }
 
