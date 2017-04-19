@@ -144,7 +144,6 @@ string receiveMessagebyDaemon(mqd_t read_fd){
 
   while((err=mq_receive(read_fd, msg, 250, NULL))!=-1)
   {
-    if(gameMap != NULL)
       msg_str = msg;
     //call postNotice(msg) for your Map object;
     //cout << "Message received: " << msg << endl;
@@ -156,24 +155,37 @@ string receiveMessagebyDaemon(mqd_t read_fd){
   {
     perror("mq_receive");
   }
-  return msg;
+  return msg_str;
 
 }
 
 void socket_Message_signal_handler(int){
-  char p_mask = G_PLR1;
-  send_Socket_Message(p_mask, "hardcode message");
-  return;
-
+  char p_mask = G_SOCKMSG;
   string msg_str;
   for(int i = 0; i<5;i++){
     if (daemon_readqueue_fds[i] != -1){
         msg_str = receiveMessagebyDaemon(daemon_readqueue_fds[i]);
-        if(msg_str != ""){
-          send_Socket_Message(p_mask, msg_str);
+        if(msg_str != "" && i == 0){
+          send_Socket_Message(G_PLR0, msg_str);
+          return;
+        }
+        if(msg_str != "" && i == 1){
+          send_Socket_Message(G_PLR1, msg_str);
+          return;
+        }
+        if(msg_str != "" && i == 2){
+          send_Socket_Message(G_PLR2, msg_str);
+          return;
+        }
+        if(msg_str != "" && i == 3){
+          send_Socket_Message(G_PLR3, msg_str);
+          return;
+        }
+        if(msg_str != "" && i == 4){
+          send_Socket_Message(G_PLR4, msg_str);
+          return;
         }
     }
-
 
   }
 }
