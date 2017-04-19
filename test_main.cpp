@@ -249,6 +249,7 @@ void process_Socket_Player(FILE *fp, char protocol_type){
     //socket_break_Read_signal_handler();
     char protocol_type1 = 1;
     WRITE <char>(write_fd, &protocol_type1, sizeof(char));
+
   }
 
 }
@@ -330,6 +331,14 @@ void socket_Communication_Handler(FILE *fp){
   }
   else if (protocol_type == 2 ){// TODO DELETE
     fprintf(fp, "read protocol_type - break for Blocking read.\n");
+
+    fprintf(fp,"Cleaning up SHM and semaphore in Daemon.\n", getpid());
+    fflush(fp);
+
+    shm_unlink(SHM_NAME);
+    sem_close(shm_sem);
+    sem_unlink(SHM_SM_NAME);
+
     fprintf(fp,"All done in demon, Killing daemon with pid -%d now.\n", getpid());
     close(write_fd);
     close(read_fd);
