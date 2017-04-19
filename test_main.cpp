@@ -160,65 +160,35 @@ string receiveMessagebyDaemon(mqd_t read_fd){
 }
 
 void socket_Message_signal_handler(int){
-  /*
-  string msg_str1 = receiveMessagebyDaemon(daemon_readqueue_fds[0]);
-  send_Socket_Message(G_PLR0, msg_str1);
-  return;
-  */
-
   char p_mask = G_SOCKMSG;
   string msg_str;
 
-/*
   for(int i = 0; i<5;i++){
     if (daemon_readqueue_fds[i] != -1){
         msg_str = receiveMessagebyDaemon(daemon_readqueue_fds[i]);
 
         if(msg_str != "" && i == 0){
-          send_Socket_Message(G_PLR0, msg_str);
+          send_Socket_Message(p_mask | G_PLR0, msg_str);
           return;
         }
         if(msg_str != "" && i == 1){
-          send_Socket_Message(G_PLR1, msg_str);
+          send_Socket_Message(p_mask | G_PLR1, msg_str);
           return;
         }
         if(msg_str != "" && i == 2){
-          send_Socket_Message(G_PLR2, msg_str);
+          send_Socket_Message(p_mask | G_PLR2, msg_str);
           return;
         }
         if(msg_str != "" && i == 3){
-          send_Socket_Message(G_PLR3, msg_str);
+          send_Socket_Message(p_mask | G_PLR3, msg_str);
           return;
         }
         if(msg_str != "" && i == 4){
-          send_Socket_Message(G_PLR4, msg_str);
+          send_Socket_Message(p_mask | G_PLR4, msg_str);
           return;
         }
     }
   } // end of for
-  */
-  for(int i = 0; i<5;i++){
-    if (daemon_readqueue_fds[i] != -1){
-        msg_str = receiveMessagebyDaemon(daemon_readqueue_fds[i]);
-
-        if( i == 0){
-          send_Socket_Message(G_PLR0, msg_str);
-        }
-        if( i == 1){
-          send_Socket_Message(G_PLR1, msg_str);
-        }
-        if( i == 2){
-          send_Socket_Message(G_PLR2, msg_str);
-        }
-        if( i == 3){
-          send_Socket_Message(G_PLR3, msg_str);
-        }
-        if( i == 4){
-          send_Socket_Message(G_PLR4, msg_str);
-        }
-    }
-  } // end of for
-
 
 }
 
@@ -571,6 +541,7 @@ void intialize_active_plr_client(char active_plr_mask){
 
 void init_Client_Daemon(string ip_address){
   int rows, cols, goldCount, fd;
+  daemon_readqueue_fds[0] = -1;daemon_readqueue_fds[1] = -1;daemon_readqueue_fds[2] = -1;daemon_readqueue_fds[3] = -1;daemon_readqueue_fds[4] = -1;
 
   FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_client.log", "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
@@ -605,7 +576,6 @@ void init_Client_Daemon(string ip_address){
       mbp->map[i] = mbpVector[i];
 
   write_fd = get_Write_Socket_fd(fp);
-  daemon_readqueue_fds[0] = -1;daemon_readqueue_fds[1] = -1;daemon_readqueue_fds[2] = -1;daemon_readqueue_fds[3] = -1;daemon_readqueue_fds[4] = -1;
   mbp->daemonID = getpid();
   sem_post(shm_sem);
   setUpDaemonSignalHandlers();
