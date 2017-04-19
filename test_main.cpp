@@ -272,17 +272,6 @@ void process_Socket_Map(FILE *fp, char protocol_type){
     mapChangesVector.push_back(make_pair(changedMapId,changedMapValue));
   }
 
-  /*
-  fprintf(fp, "in server : Vector_size %d\n",mapChangesVector.size());
-  fprintf(fp, "in server : printing mapChangesVector\n");
-
-  for(int i = 0; i<Vector_size; i++){
-    changedMapId = mapChangesVector[i].first;
-    changedMapValue = mapChangesVector[i].second;
-    fprintf(fp, "Id : %d --- Value : %c\n", changedMapId, changedMapValue);
-  }
-  */
-
   sem_wait(shm_sem);
   for(int i = 0; i<Vector_size; i++){
     mbp->map[mapChangesVector[i].first] = mapChangesVector[i].second;
@@ -419,14 +408,8 @@ void init_Server_Daemon(string ip_address){
 
   while(1){
     socket_Communication_Handler(fp); // takes care of read_fd and exit
-    sleep(1);
+    //sleep(1);
   }
-
-  // control never reaches here
-  fprintf(fp,"All done in Server demon, Killing daemon with pid -%d now.\n", getpid());
-  fclose(fp);
-  exit(0);
-
 }
 
 void intialize_active_plr_client(char active_plr_mask){
@@ -480,23 +463,7 @@ void init_Client_Daemon(string ip_address){
   mbp->player_pids[0] = -1; mbp->player_pids[1] = -1;mbp->player_pids[2] = -1;mbp->player_pids[3] = -1;mbp->player_pids[4] = -1;
 
 
-    for(int i = 0; i < 5;i++ ){
-      if(i==0 &&  (active_plr_mask & G_PLR0) && mbp->player_pids[i] == -1){
-        mbp->player_pids[i] = getpid();
-      }
-      if ( i==1 && (active_plr_mask & G_PLR1) && mbp->player_pids[i] == -1){
-        mbp->player_pids[i] = getpid();
-      }
-      if ( i==2 && (active_plr_mask & G_PLR2) && mbp->player_pids[i] == -1){
-        mbp->player_pids[i] = getpid();
-      }
-      if ( i==3 && (active_plr_mask & G_PLR3) && mbp->player_pids[i] == -1){
-        mbp->player_pids[i] = getpid();
-      }
-      if ( i==4 && (active_plr_mask & G_PLR4) && mbp->player_pids[i] == -1){
-        mbp->player_pids[i] = getpid();
-      }
-    }
+  intialize_active_plr_client(active_plr_mask);
 
   for (int i=0; i < rows*cols; i++)
       mbp->map[i] = mbpVector[i];
@@ -512,13 +479,8 @@ void init_Client_Daemon(string ip_address){
 
   while(1){
     socket_Communication_Handler(fp); // takes care of read_fd and exit
-    sleep(1);
+    //sleep(1);
   }
-
-  // control never reaches here
-  fprintf(fp,"All done in Client demon, Killing daemon with pid -%d now.\n", getpid());
-  fclose(fp);
-  exit(0);
 }
 
 
