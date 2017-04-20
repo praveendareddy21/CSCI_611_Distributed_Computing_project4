@@ -470,7 +470,7 @@ void init_Server_Daemon(string ip_address){
   FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_server.log", "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
   fflush(fp);
-
+  setUpDaemonSignalHandlers();
   sem_wait(shm_sem);
   mbp = readSharedMemory();
   rows = mbp->rows;
@@ -495,7 +495,7 @@ void init_Server_Daemon(string ip_address){
 
   read_fd = get_Read_Socket_fd(fp);
 
-  setUpDaemonSignalHandlers();
+
   fflush(fp);
 
 
@@ -843,6 +843,14 @@ void setUpSignalHandlers(){
 
 }
 
+bool hasNonLocalPlayers(){
+  int d_pid = mbp->daemonID;
+  if (mbp->player_pids[0] == d_pid || mbp->player_pids[1] == d_pid || mbp->player_pids[2] == d_pid || mbp->player_pids[3] == d_pid || mbp->player_pids[4] == d_pid)
+    return true;
+  else
+  return false;
+
+}
 int main(int argc, char *argv[])
 {
 
@@ -917,8 +925,20 @@ int main(int argc, char *argv[])
      cout<<"shm daemonid "<<mbp->daemonID<<endl;
      sem_post(shm_sem);
 
-     sendSignalToDaemon(mbp, SIGHUP);
-     sendSignalToDaemon(mbp, SIGUSR1);
+     if(inClientNode){
+       sendSignalToDaemon(mbp, SIGHUP);
+       sendSignalToDaemon(mbp, SIGUSR1);
+    }
+    if(inServerNode && hasNonLocalPlayers()){
+      sendSignalToDaemon(mbp, SIGHUP);
+      sendSignalToDaemon(mbp, SIGUSR1);
+    }
+    if(inServerNode && !hasNonLocalPlayers()){
+      for (int i=0; i < rows*cols; i++)
+          initial_map[i] =  mbp->map[i];
+      initial_map[rows*cols] = '\0';
+    }
+
    }
 
    /*
