@@ -169,23 +169,18 @@ void socket_Message_signal_handler(int){
 
         if(msg_str != "" && i == 0){
           send_Socket_Message(p_mask | G_PLR0, msg_str);
-          return;
         }
         if(msg_str != "" && i == 1){
           send_Socket_Message(p_mask | G_PLR1, msg_str);
-          return;
         }
         if(msg_str != "" && i == 2){
           send_Socket_Message(p_mask | G_PLR2, msg_str);
-          return;
         }
         if(msg_str != "" && i == 3){
           send_Socket_Message(p_mask | G_PLR3, msg_str);
-          return;
         }
         if(msg_str != "" && i == 4){
           send_Socket_Message(p_mask | G_PLR4, msg_str);
-          return;
         }
     }
   } // end of for
@@ -950,22 +945,23 @@ int main(int argc, char *argv[])
          sem_post(shm_sem);
          if(notice == FAKE_GOLD_MESSAGE || notice == REAL_GOLD_MESSAGE ){
            sendSignalToActivePlayers(mbp, SIGUSR1);
+           sendSignalToDaemon(mbp, SIGUSR1);
            (*gameMap).postNotice(notice);
            (*gameMap).drawMap();
          }
          else if(notice == YOU_WON_MESSAGE ){
            sendSignalToActivePlayers(mbp, SIGUSR1);
+           sendSignalToDaemon(mbp, SIGUSR1);
            // broadcast winning msg
            sendWinningMsgBroadcastToPlayers(thisPlayer);
+           sendSignalToDaemon(mbp, SIGUSR2);
            (*gameMap).postNotice(notice);
            (*gameMap).drawMap();
          }
          else if(notice == EMPTY_MESSAGE_PLAYER_MOVED ){
            sendSignalToActivePlayers(mbp, SIGUSR1);
-           (*gameMap).drawMap();
-
            sendSignalToDaemon(mbp, SIGUSR1);
-
+           (*gameMap).drawMap();
          }
 
 
@@ -982,6 +978,7 @@ int main(int argc, char *argv[])
        else if(keyInput == 98){ // key b for broadcast
          string msg = (*gameMap).getMessage();
          sendMsgBroadcastToPlayers(thisPlayer, msg);
+         sendSignalToDaemon(mbp, SIGUSR2);
        }
 
 
