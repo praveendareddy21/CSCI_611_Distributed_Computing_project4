@@ -278,6 +278,7 @@ void process_Socket_Player(FILE *fp, char protocol_type){
 
         mq_close(daemon_readqueue_fds[i]);
         mq_unlink(daemon_mq_names[i].c_str());
+        daemon_readqueue_fds[i] = -1;
       }
 
 
@@ -293,6 +294,7 @@ void process_Socket_Player(FILE *fp, char protocol_type){
 
         mq_close(daemon_readqueue_fds[i]);
         mq_unlink(daemon_mq_names[i].c_str());
+        daemon_readqueue_fds[i] = -1;
       }
 
       if ( i==2 && (protocol_type & G_PLR2) && mbp->player_pids[i] == -1){ // p3 joined
@@ -307,6 +309,7 @@ void process_Socket_Player(FILE *fp, char protocol_type){
 
         mq_close(daemon_readqueue_fds[i]);
         mq_unlink(daemon_mq_names[i].c_str());
+        daemon_readqueue_fds[i] = -1;
       }
 
       if ( i==3 && (protocol_type & G_PLR3) && mbp->player_pids[i] == -1){ // p4 joined
@@ -321,6 +324,7 @@ void process_Socket_Player(FILE *fp, char protocol_type){
 
         mq_close(daemon_readqueue_fds[i]);
         mq_unlink(daemon_mq_names[i].c_str());
+        daemon_readqueue_fds[i] = -1;
       }
 
       if ( i==4 && (protocol_type & G_PLR4) && mbp->player_pids[i] == -1){
@@ -335,6 +339,7 @@ void process_Socket_Player(FILE *fp, char protocol_type){
 
         mq_close(daemon_readqueue_fds[i]);
         mq_unlink(daemon_mq_names[i].c_str());
+        daemon_readqueue_fds[i] = -1;
       }
 
     }// end of for loop
