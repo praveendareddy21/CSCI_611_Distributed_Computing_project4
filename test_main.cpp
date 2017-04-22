@@ -572,7 +572,7 @@ void init_Client_Daemon(string ip_address){
   for (int i=0; i < rows*cols; i++)
       mbp->map[i] = mbpVector[i];
 
-  write_fd = get_Write_Socket_fd(fp);
+  write_fd = get_Write_Socket_fd(fp, ip_address);
   mbp->daemonID = getpid();
   sem_post(shm_sem);
   setUpDaemonSignalHandlers();
@@ -859,7 +859,7 @@ int main(int argc, char *argv[])
   int rows, cols, goldCount, keyInput = 0, currPlaying = -1, fd;
   bool thisPlayerFoundGold = false , thisQuitGameloop = false, inServerNode = false, inClientNode = false;
   char * mapFile = "mymap.txt",* daemon_server_ip;
-  string ip_address = "localpost";
+  string ip_address = "localhost";
   const char * notice;
   unsigned char * mp; //map pointer
   vector<vector< char > > mapVector;
