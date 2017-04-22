@@ -47,6 +47,8 @@ using namespace std;
 #define EMPTY_MESSAGE_PLAYER_MOVED "m"
 #define EMPTY_MESSAGE_PLAYER_NOT_MOVED "n"
 #define YOU_WON_MESSAGE "You Won!"
+#define CLIENT_LOG_DIR "/tmp/gchase_client.log"
+#define SERVER_LOG_DIR "/tmp/gchase_server.log"
 
 
 
@@ -467,7 +469,7 @@ void setUpDaemonSignalHandlers(){
 
 void init_Server_Daemon(string ip_address){
   int rows, cols;
-  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_server.log", "w+");
+  FILE * fp = fopen (SERVER_LOG_DIR, "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
   fflush(fp);
   setUpDaemonSignalHandlers();
@@ -538,7 +540,7 @@ void init_Client_Daemon(string ip_address){
   int rows, cols, goldCount, fd;
   daemon_readqueue_fds[0] = -1;daemon_readqueue_fds[1] = -1;daemon_readqueue_fds[2] = -1;daemon_readqueue_fds[3] = -1;daemon_readqueue_fds[4] = -1;
 
-  FILE * fp = fopen ("/home/red/611_project/CSCI_611_Distributed_Computing_project4/gchase_client.log", "w+");
+  FILE * fp = fopen (CLIENT_LOG_DIR, "w+");
   fprintf(fp, "Logging info from daemon with pid : %d\n", getpid());
   fprintf(fp, "Received IP Address as : %s\n", ip_address.c_str());
   fprintf(fp,"Attempting ClientDaemon Initialize IPC now.\n");
@@ -600,7 +602,7 @@ void invoke_in_Daemon( void (*f) (string)  ,string ip_address){
     close(i);
   open("/dev/null", O_RDWR); //fd 0
   open("/dev/null", O_RDWR); //fd 1
-  open("/home/red/611_project/CSCI_611_Distributed_Computing_project4/g.log", O_RDWR); //fd 2
+  open("/dev/null", O_RDWR); //fd 2
 
 
   umask(0);
