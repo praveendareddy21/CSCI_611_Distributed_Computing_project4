@@ -264,6 +264,8 @@ string itos_utility(int i){
 vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols, string ip_address){
   int sockfd, status; //file descriptor for the socket
   const char* portno= PORT;
+  char * ip_cstr = new char[ip_address.length()+1];
+  strcpy(ip_cstr, ip_address.c_str());
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints)); //zero out everything in structure
@@ -272,7 +274,7 @@ vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols, string
 
   struct addrinfo *servinfo;
   //instead of "localhost", it could by any domain name
-  if((status=getaddrinfo("localhost", portno, &hints, &servinfo))==-1)
+  if((status=getaddrinfo(ip_cstr, portno, &hints, &servinfo))==-1)
   {fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));exit(1);}
 
   sockfd=socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
@@ -299,6 +301,7 @@ vector< char >  perform_IPC_with_server(FILE *fp, int & rows, int & cols, string
 
   fprintf(fp, "reading from server done map - %s\n", initial_map);
   read_fd = sockfd;
+  delete [] ip_cstr;
   //close(sockfd);
   return mbpVector;
 }
@@ -420,7 +423,7 @@ int get_Read_Socket_fd(FILE * fp){
 }
 
 
-int get_Write_Socket_fd(FILE * fp){
+int get_Write_Socket_fd(FILE * fp, string ip_address){
   int sockfd; //file descriptor for the socket
   int status; //for error checking
 
@@ -428,6 +431,8 @@ int get_Write_Socket_fd(FILE * fp){
   fflush(fp);
   //change this # between 2000-65k before using
   const char* portno = PORT1;
+  char * ip_cstr = new char[ip_address.length()+1];
+  strcpy(ip_cstr, ip_address.c_str());
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints)); //zero out everything in structure
@@ -436,7 +441,7 @@ int get_Write_Socket_fd(FILE * fp){
 
   struct addrinfo *servinfo;
   //instead of "localhost", it could by any domain name
-  if((status=getaddrinfo("localhost", portno, &hints, &servinfo))==-1)
+  if((status=getaddrinfo(ip_cstr, portno, &hints, &servinfo))==-1)
   {
     fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
     exit(1);
@@ -450,6 +455,7 @@ int get_Write_Socket_fd(FILE * fp){
   }
   //release the information allocated by getaddrinfo()
   freeaddrinfo(servinfo);
+  delete [] ip_cstr;
 
   fprintf(fp, "Connected to server.\n");
   fprintf(fp, "returning Write Socket fd for Socket protocol IPC as %d.\n", sockfd);
