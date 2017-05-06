@@ -864,13 +864,13 @@ int main(int argc, char *argv[])
   int rows, cols, goldCount, keyInput = 0, currPlaying = -1, fd;
   bool thisPlayerFoundGold = false , thisQuitGameloop = false, inServerNode = false, inClientNode = false;
   char * mapFile = "mymap.txt",* daemon_server_ip;
-  string ip_address = "localhost";
+  string ip_address = "";
   const char * notice;
   unsigned char * mp; //map pointer
   vector<vector< char > > mapVector;
 
   if(IS_CLIENT == -1 && argc == 2){ // ip to connect daemon server
-    daemon_server_ip = argv[1];
+    ip_address = argv[1];
     inClientNode = true;
     shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
     if(shm_sem == SEM_FAILED)//     semaphore and shm not initilized on client;
