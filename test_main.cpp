@@ -36,7 +36,7 @@ using namespace std;
 #define  SHM_SM_NAME "/PD_semaphore"
 #define  SHM_NAME "/PD_SharedMemory"
 #define MSG_QUEUE_PREFIX "/PD_MSG_QUEUE_P"
-#define IS_CLIENT 0
+#define IS_CLIENT -1
 #define PORT "42425"  //change this # between 2000-65k before using
 #define PORT1 "42426"  //change this # between 2000-65k before using
 #endif
@@ -868,7 +868,31 @@ int main(int argc, char *argv[])
   const char * notice;
   unsigned char * mp; //map pointer
   vector<vector< char > > mapVector;
-  if(IS_CLIENT){ //argc == 2){ // ip to connect daemon server
+
+  if(IS_CLIENT == -1 && argc == 2){ // ip to connect daemon server
+    daemon_server_ip = argv[1];
+    inClientNode = true;
+    shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
+    if(shm_sem == SEM_FAILED)//     semaphore and shm not initilized on client;
+    {
+      invoke_in_Daemon(init_Client_Daemon, ip_address);
+      // wait loop until shm is inited by client daemon
+      while(1){ // loop until mbp is updated
+          sleep(1);
+          if ( (fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)
+            cout<<"shm not set"<<endl;
+          else{
+            cout<<"shm set"<<endl;
+            break;
+          }
+      }
+    }
+  }
+  else if(IS_CLIENT == -1 && argc == 1){ // ip to connect daemon server
+    inServerNode = true;
+  }
+
+  else if(IS_CLIENT){ //argc == 2){ // ip to connect daemon server
     daemon_server_ip = argv[1];
     inClientNode = true;
     shm_sem = sem_open(SHM_SM_NAME ,O_RDWR,S_IRUSR|S_IWUSR,1);
