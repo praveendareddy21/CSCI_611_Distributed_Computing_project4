@@ -1328,8 +1328,9 @@ int main(int argc, char *argv[])
       // wait loop until shm is inited by client daemon
       while(1){ // loop until mbp is updated
           sleep(1);
-          if ( (fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)
+          if ( (fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) == -1){
             //cout<<"shm not set"<<endl;
+          }
           else{
             //cout<<"shm set"<<endl;
             break;
