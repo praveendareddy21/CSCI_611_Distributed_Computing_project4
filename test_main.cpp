@@ -1329,9 +1329,9 @@ int main(int argc, char *argv[])
       while(1){ // loop until mbp is updated
           sleep(1);
           if ( (fd = shm_open(SHM_NAME, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)
-            cout<<"shm not set"<<endl;
+            //cout<<"shm not set"<<endl;
           else{
-            cout<<"shm set"<<endl;
+            //cout<<"shm set"<<endl;
             break;
           }
       }
@@ -1364,22 +1364,22 @@ int main(int argc, char *argv[])
      if(inServerNode){
        //set up server node
        invoke_in_Daemon(init_Server_Daemon, ip_address);
-       cout<<"created server daemon"<<endl;
+       //cout<<"created server daemon"<<endl;
 
        while(1){ if (mbp->daemonID != -1) break;} // loop until daemonId is updated
-       cout<<"shm init done daemonid "<<mbp->daemonID<<endl;
+       //cout<<"shm init done daemonid "<<mbp->daemonID<<endl;
      }
 
    }
    else
    {
-     cout<<"not first player"<<endl;
+     //cout<<"not first player"<<endl;
      sem_wait(shm_sem);
      mbp = readSharedMemory();
      rows = mbp->rows;
      cols = mbp->cols;
      thisPlayer = placeIncrementPlayerOnMap(mbp, thisPlayerLoc);
-     cout<<"shm daemonid "<<mbp->daemonID<<endl;
+     //cout<<"shm daemonid "<<mbp->daemonID<<endl;
      sem_post(shm_sem);
 
      if(inClientNode){
