@@ -447,6 +447,9 @@ void perform_IPC_with_client(FILE *fp){
   rows = mbp->rows;
   cols = mbp->cols;
 
+  for (int i=0; i < rows*cols; i++)
+      initial_map[i] =  mbp->map[i];
+
   WRITE<int>(new_sockfd, &rows, sizeof(int));
   WRITE<int>(new_sockfd, &cols, sizeof(int));
   WRITE<char>(new_sockfd, initial_map, (rows*cols + 1)*sizeof(char));
@@ -1389,9 +1392,7 @@ int main(int argc, char *argv[])
       sendSignalToDaemon(mbp, SIGUSR1);
     }
     if(inServerNode && !hasNonLocalPlayers()){
-      for (int i=0; i < rows*cols; i++)
-          initial_map[i] =  mbp->map[i];
-      initial_map[rows*cols] = '\0';
+
     }
 
    }
