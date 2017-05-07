@@ -55,7 +55,6 @@ using namespace std;
 struct mapboard{
   int rows;
   int cols;
-  //unsigned char playing;
   pid_t player_pids[5];
   int daemonID;
   unsigned char map[0];
@@ -868,7 +867,7 @@ void socket_Communication_Handler(FILE *fp){
     process_Socket_Map(fp, protocol_type);
 
   }
-  else if (protocol_type == 1 ){// TODO DELETE
+  else if (protocol_type == 1 ){
       fprintf(fp, "read protocol_type - break for Blocking read.\n");
       char protocol_type1 = 2;
       WRITE <char>(write_fd, &protocol_type1, sizeof(char));
@@ -879,7 +878,7 @@ void socket_Communication_Handler(FILE *fp){
       fclose(fp);
       exit(0);
   }
-  else if (protocol_type == 2 ){// TODO DELETE
+  else if (protocol_type == 2 ){
     fprintf(fp, "read protocol_type - break for Blocking read.\n");
 
     fprintf(fp,"Cleaning up SHM and semaphore in Daemon.\n", getpid());
@@ -897,18 +896,7 @@ void socket_Communication_Handler(FILE *fp){
   }
 }
 
-void socket_break_Read_signal_handler(int){ //TODO DELETE
-  char protocol_type1 = 1;
-  WRITE <char>(write_fd, &protocol_type1, sizeof(char));
-}
-
 void setUpDaemonSignalHandlers(){
-
-  struct sigaction break_read; //TODO
-  break_read.sa_handler = socket_break_Read_signal_handler;
-  break_read.sa_flags=0;
-  sigemptyset(&break_read.sa_mask);
-  sigaction(SIGINT, &break_read, NULL);
 
   struct sigaction exit_action;
   exit_action.sa_handler = socket_Player_signal_handler;
@@ -1116,7 +1104,7 @@ void handleGameExit(int){
   sendSignalToDaemon(mbp, SIGHUP);
   sendSignalToDaemon(mbp, SIGUSR1);
 
-  bool isBoardEmpty = isGameBoardEmpty(mbp); //TODO
+  bool isBoardEmpty = isGameBoardEmpty(mbp);
   mq_close(readqueue_fd);
   mq_unlink(mq_name.c_str());
 
@@ -1251,7 +1239,7 @@ void sendMsgBroadcastToPlayers(int thisPlayer, string msg){
 }
 
 void sendWinningMsgBroadcastToPlayers(int thisPlayer){
-  string msg = "Player #" + itos_utility(getPlayerFromMask(thisPlayer)) + " won!";
+  string msg = "Player #" + itos_utility(getPlayerFromMask(thisPlayer)+1) + " won!";
 
   for(int i=0; i<5; i++){
     if(mbp->player_pids[i] != -1 && i != getPlayerFromMask(thisPlayer) ){
