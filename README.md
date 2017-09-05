@@ -1,21 +1,28 @@
 # GoldChase Multi-Player Board Game
 
+![gameboard](goldchase.PNG)
+
+## Rules
+1. Use h,j,k,and l to move the player left, down, up, and right respectively.
+2. If a player lands on top of a square containing gold, post a message declaring whether the
+player has found fool's gold or real gold.
+3. A player may not move into a wall, or off the edge of the map. Silently ignore direction
+commands which attempt an illegal move.
+4. One player may move over/through another player.
+5. When a player who has found the real gold attempts to move off the map, he is declared
+winner--display a "You Won!" message. Note that in this first version, the other players
+won't know that a winner has been declared.
+6. At any time a player may quit and leave the game by entering an upper-case Q.
 
 
 
-
-project 4 with support for distributed computing uising daemon service
-
-
-
-Summary 
-A game instance may be running on either a server computer or a client computer. More than 
-one game instance may be running on both the client and the server. There may only be one 
-server computer but there may be multiple client computers. 
-The first game instance to start on a server computer will also start a daemon on that server. 
-Likewise, the first game instance to start on a client computer will also start a daemon on the 
-client computer. The daemons manage the communications between computers. It will also now 
-be the responsibility of the the daemons to clean up/remove shared memory once all players 
+## Summary 
+* A game instance may be running on either a server computer or a client computer.
+* More than one game instance may be running on both the client and the server. 
+* There may only be one server computer but there may be multiple client computers. 
+* The first game instance to start on a server computer will also start a daemon on that server. 
+* Likewise, the first game instance to start on a client computer will also start a daemon on the client computer. The daemons manage the communications between computers.
+* It will also now be the responsibility of the the daemons to clean up/remove shared memory once all players 
 have left the game. 
 
 # Initial game play enhancements 
@@ -47,27 +54,27 @@ copy as necessary.
 2. If length of vector is > 0, socket write: Socket Map 
 SIGUSR2 (a message queue message is waiting) 
 1. Loop through each message queue. When a message is found in queue, socket write: 
-# Socket Message protocol. 
-Socket communications protocol 
-Socket Message (a message is being sent to a player) 
-(1) 1 byte: G_SOCKMSG or’d with G_PLR# of message recipient 
-(2) 1 short: n, # of bytes in message 
-(3) n bytes: the message itself 
-Socket Player (a player is joining or leaving the game) 
-(1) 1 byte: G_SOCKPLR or’d with all active players G_PLR# 
-Socket Map (a map refresh is required) 
-(1) 1 byte: 0 
-(2) 1 short: n, # of changed map squares 
-(3) for 1 to n: 
+## Socket Message protocol. 
+### Socket Message a message is being sent to a player. 
+1. 1 byte: G_SOCKMSG or’d with G_PLR# of message recipient 
+2. 1 short: n, # of bytes in message 
+3. n bytes: the message itself 
+
+### Socket Player a player is joining or leaving the game. 
+1. 1 byte: G_SOCKPLR or’d with all active players G_PLR# 
+Socket Map a map refresh is required. 
+1. 1 byte: 0 
+2. 1 short: n, # of changed map squares 
+3. for 1 to n: 
 1 short: offset into map memory 
 1 byte: new byte value 
-Socket Client Initialize (the client daemon has connected) 
-(1) 1 int: the number of map rows 
-(2) 1 int: the number of map cols 
-(3) n bytes: (where n=rows X cols) the map  
-CSCI-611 Project 4: Goldchase–Two tin cans and a string Ver. 1.16, 4/2017 
-Daemon behaviors 
-Server start up 
+### Socket Client Initialize the client daemon has connected. 
+1. 1 int: the number of map rows 
+2. 1 int: the number of map cols 
+3. n bytes: (where n=rows X cols. the map  
+
+# Daemon behaviors 
+## Server start up 
 1. Connect to shared memory & map via mmap() 
 2. Call getpid() to retrieve the daemon’s process id for the daemonID field in the 
 gameBoard structure in shared memory. 
@@ -84,7 +91,7 @@ Server receives client connect
 trying to read a single byte. The contents of that byte will determine which communication is 
 being started (note that all types of messages under Socket communications protocol 
 begin with a single byte). 
-Client startup 
+## Client startup 
 1. Read the rows and columns from the socket (see Socket Client Initialize protocol). 
 2. Allocate space (rows * cols) for a local copy of map (not the gameBoard, just the map) 
 3. Read n bytes (where n=rows*cols) from the socket into the local copy of map (see Socket 
