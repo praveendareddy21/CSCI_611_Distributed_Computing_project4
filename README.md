@@ -1,10 +1,13 @@
-# CSCI_611_Distributed_Computing_Linux_sniCSCI_611_Distributed_Computing_project4
-Goldchase project 4 with support for distributed computing uising daemon service
+# GoldChase Multi-Player Board Game
 
 
 
-This project is an enhancement of project 3, where we add support for sockets so players on 
-other computers can connect to a running game. 
+
+
+project 4 with support for distributed computing uising daemon service
+
+
+
 Summary 
 A game instance may be running on either a server computer or a client computer. More than 
 one game instance may be running on both the client and the server. There may only be one 
@@ -14,7 +17,8 @@ Likewise, the first game instance to start on a client computer will also start 
 client computer. The daemons manage the communications between computers. It will also now 
 be the responsibility of the the daemons to clean up/remove shared memory once all players 
 have left the game. 
-Initial game play enhancements 
+
+# Initial game play enhancements 
 Make three minor modifications to goldchase: 
 1. Add an additional member to the gameBoard structure: 
 int daemonID; 
@@ -27,8 +31,8 @@ removed from the map, send the daemon process another SIGHUP signal. In the prev
 implementation of Goldchase, the last player would unlink the shared memory and 
 semaphore. The daemon will now be responsible for removing the shared memory and 
 semaphore. 
-CSCI-611 Project 4: Goldchase–Two tin cans and a string Ver. 1.16, 4/2017 
-Signal handlers in daemons 
+
+# Signal handlers in daemons 
 SIGHUP (player has joined or left game) 
 1. Socket write: Socket Player 
 2. After the socket write, check the value of the byte you just wrote to the socket. If the byte 
@@ -43,7 +47,7 @@ copy as necessary.
 2. If length of vector is > 0, socket write: Socket Map 
 SIGUSR2 (a message queue message is waiting) 
 1. Loop through each message queue. When a message is found in queue, socket write: 
-Socket Message protocol. 
+# Socket Message protocol. 
 Socket communications protocol 
 Socket Message (a message is being sent to a player) 
 (1) 1 byte: G_SOCKMSG or’d with G_PLR# of message recipient 
